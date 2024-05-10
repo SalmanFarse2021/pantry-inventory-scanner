@@ -1,11 +1,11 @@
 class Pet{
-    constructor(name, age = 1, happiness = 100, hunger = 0, boredom = 0, energy = 100){
+    constructor(name){
         this.name = name;
-        this.age = age;
-        this.happiness = happiness;
-        this.hunger = hunger;
-        this.boredom = boredom;
-        this.energy = energy;
+        this.age = 1;
+        this.happiness = 100;
+        this.hunger = 0;
+        this.boredom = 0;
+        this.energy = 100;
     }
 
     eat(){
