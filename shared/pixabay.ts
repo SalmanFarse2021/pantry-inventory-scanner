@@ -44,7 +44,13 @@ export function isValidVideoHit(hit: PixabayVideoHit): boolean {
   return (
     splitTags(hit.tags).length > 0 &&
     !!hit.videos.medium?.url &&
-    !!hit.videos.small?.url
+    !!hit.videos.small?.url &&
+    // The feed is a full-height, full-width vertical card (object-cover on a portrait
+    // container) — a landscape source gets cropped down to a sliver of its frame, which can
+    // leave the only moving part of the shot outside the visible crop and make a genuinely
+    // playing video look like a frozen image. Pixabay's video search has no orientation
+    // param (unlike its image search), so this filters by the actual rendition dimensions.
+    hit.videos.medium.height > hit.videos.medium.width
   )
 }
 

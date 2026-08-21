@@ -2,7 +2,7 @@ import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useRef } from 'react'
 import { IconSwipeUp } from '@tabler/icons-react'
 import { useGameStore } from '../game/gameStore'
-import { placeholderGradient } from '../lib/placeholderGradient'
+import { VideoCard } from '../components/feed/VideoCard'
 import { LikeButton } from '../components/feed/LikeButton'
 import { BrainrotMeter } from '../components/meters/BrainrotMeter'
 import { HotColdMeter } from '../components/meters/HotColdMeter'
@@ -40,10 +40,9 @@ function GoalPreviewScreen() {
   // swipe already triggered navigation).
   const startedRef = useRef(false)
 
-  if (!bundle) return null
+  const goal = bundle?.goal
 
-  const goal = bundle.goal
-  const hasVideo = Boolean(goal.video.medium.url)
+  if (!bundle || !goal) return null
 
   // The timer only starts once the feed screen mounts with status 'feed' (see FeedList), so
   // simply not calling startFeed() until a real swipe gesture is exactly what keeps it paused
@@ -85,32 +84,10 @@ function GoalPreviewScreen() {
       onWheel={handleWheel}
       onKeyDown={handleKeyDown}
     >
-      {hasVideo ? (
-        <video
-          src={goal.video.medium.url}
-          poster={goal.video.medium.thumbnail}
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <div
-          className="flex h-full w-full items-center justify-center p-8 text-center"
-          style={{ background: placeholderGradient(goal.category) }}
-        >
-          <span className="text-2xl font-semibold text-white/80">{goal.category}</span>
-        </div>
-      )}
+      <VideoCard post={goal} isActive mounted onLike={() => {}} />
 
       <div className="pointer-events-none absolute inset-x-0 top-0 pt-[max(1rem,env(safe-area-inset-top))] text-center">
         <p className="text-xs font-semibold uppercase tracking-widest opacity-70">today&apos;s target</p>
-      </div>
-
-      <div className="pointer-events-none absolute bottom-6 left-4 right-20 drop-shadow">
-        <p className="font-semibold">@{goal.attribution.user}</p>
-        <p className="text-sm opacity-90">{goal.tags.map((t) => `#${t}`).join(' ')}</p>
       </div>
 
       <div className="pointer-events-none absolute inset-0">

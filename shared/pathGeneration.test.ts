@@ -12,11 +12,13 @@ function fakeHitsForCategory(category: PixabayCategory, count: number): PixabayV
       type: 'film',
       tags: `${category}, tag-${i}, filler`,
       duration: 10,
+      // Portrait (height > width), matching real vertical renditions — isValidVideoHit
+      // rejects landscape hits since the feed is a full-height vertical card.
       videos: {
-        large: { url: `https://cdn.example/${id}_large.mp4`, width: 1920, height: 1080, size: 1, thumbnail: '' },
-        medium: { url: `https://cdn.example/${id}_medium.mp4`, width: 1280, height: 720, size: 1, thumbnail: '' },
-        small: { url: `https://cdn.example/${id}_small.mp4`, width: 640, height: 360, size: 1, thumbnail: '' },
-        tiny: { url: `https://cdn.example/${id}_tiny.mp4`, width: 480, height: 270, size: 1, thumbnail: '' },
+        large: { url: `https://cdn.example/${id}_large.mp4`, width: 1080, height: 1920, size: 1, thumbnail: '' },
+        medium: { url: `https://cdn.example/${id}_medium.mp4`, width: 720, height: 1280, size: 1, thumbnail: '' },
+        small: { url: `https://cdn.example/${id}_small.mp4`, width: 360, height: 640, size: 1, thumbnail: '' },
+        tiny: { url: `https://cdn.example/${id}_tiny.mp4`, width: 270, height: 480, size: 1, thumbnail: '' },
       },
       user_id: 1,
       user: 'fixture-user',

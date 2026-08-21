@@ -23,6 +23,12 @@ export function VideoCard({ post, isActive, onLike, mounted }: VideoCardProps) {
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
+    // The `muted` JSX attribute only sets defaultMuted on an element created outside HTML
+    // parsing (which is what React always does) — it does not reliably set the live `.muted`
+    // IDL property. Browsers require that property (not just the attribute) to be true before
+    // they'll allow autoplay, so without this, play() below rejects silently (caught below) and
+    // the card is stuck showing its poster frame.
+    video.muted = true
     if (isActive) video.play().catch(() => {})
     else video.pause()
   }, [isActive])
