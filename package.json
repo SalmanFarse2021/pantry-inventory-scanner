@@ -11,7 +11,8 @@
     "dev:vite": "vite",
     "build": "tsc -b && vite build",
     "test": "tsx --test shared/*.test.ts",
-    "rls-test": "tsx scripts/rls-test.ts"
+    "rls-test": "tsx scripts/rls-test.ts",
+    "intake-e2e": "tsx scripts/intake-e2e.ts"
   },
   "dependencies": {
     "@google/genai": "^2.27.0",
@@ -20,6 +21,7 @@
     "@tabler/icons-react": "^3.49.0",
     "@tanstack/react-query": "^5.104.1",
     "@tanstack/react-router": "^1.170.41",
+    "idb-keyval": "^6.3.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "sharp": "^0.35.5",

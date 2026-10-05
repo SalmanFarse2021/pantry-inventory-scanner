@@ -105,7 +105,9 @@ Time estimates are rough, for two people part-time.
 *Result:* the intake path is Gemini-first with word-by-word name matching, and photo embeddings are dropped from the demo.
 *Remaining, optional:* compare names across the fallback model tiers (`gemini-3.1-flash-lite`, `gemma-4-31b-it`).
 
-### Phase 1: Foundation (about 2 days)
+### Phase 1: Foundation (DONE 2026-10-05)
+
+*Result:* frontend scaffolded and deployed to https://pantry-inventory-scanner.vercel.app; Supabase project (ca-central-1) has the schema, RLS, `checkout_item`, and storage buckets; 39 RLS checks pass (`npm run rls-test`); magic-link login works for the first manager. The old cron is gone. The old app's deletions are still uncommitted.
 
 - Remove or commit the old app deletions (the working tree still shows the previous app as deleted) and delete the leftover cron in the old `vercel.json`, which pointed at a job that no longer exists.
 - Scaffold Vite + React + TS + Router + Tailwind + daisyUI. Keep `scripts/` as is.
@@ -114,7 +116,9 @@ Time estimates are rough, for two people part-time.
 - Vercel: there is no `.vercel` folder locally, so link the project and confirm which Vercel project it deploys to. Add env vars (Supabase URL and keys, Gemini key) in Vercel and a local `.env`; `.env` is already gitignored.
 - **RLS tests:** a script that runs as anonymous, as a worker, and as the manager, and checks that each blocked action is blocked. This is the guarantee behind the security claim, so test it first.
 
-### Phase 2: Intake vertical slice (about 4 days)
+### Phase 2: Intake vertical slice (BUILT 2026-10-05, phone test pending)
+
+*Result so far:* `/api/identify` with the three-tier chain, quota counters and `resolve_intake_job` (migration `20261005010000`) pass `npm run intake-e2e` against the real project (one call: item created, stock = quantity, repeat call refused). Capture, IndexedDB queue and live queue screen are built and compile, but are not yet tried on a phone or deployed. Chain rules are unit-tested in `shared/modelChain.test.ts`.
 
 Build the whole path once with the Gemini chain only. Name matching and review come in Phase 3, so until then every result creates a new item.
 
