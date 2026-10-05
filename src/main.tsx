@@ -8,6 +8,12 @@ import './index.css'
 const queryClient = new QueryClient()
 const router = createRouter({ routeTree })
 
+// A deploy replaces hashed chunks; tabs on the old build then request files that no longer exist.
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault()
+  window.location.reload()
+})
+
 declare module '@tanstack/react-router' {
   interface Register {
     router: typeof router
