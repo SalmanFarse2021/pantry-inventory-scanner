@@ -8,7 +8,11 @@ const BADGE: Record<Availability, { cls: string; label: string }> = {
 
 export const availabilityLabel = (a: Availability) => BADGE[a].label
 
-export function AvailabilityBadge({ stock }: { stock: number }) {
-  const { cls, label } = BADGE[availabilityOf(stock)]
+export function AvailabilityBadgeFor({ availability }: { availability: Availability }) {
+  const { cls, label } = BADGE[availability]
   return <span className={`badge badge-soft badge-sm ${cls}`}>{label}</span>
+}
+
+export function AvailabilityBadge({ stock }: { stock: number }) {
+  return <AvailabilityBadgeFor availability={availabilityOf(stock)} />
 }
