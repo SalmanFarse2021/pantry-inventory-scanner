@@ -9,7 +9,7 @@
     "match-test": "tsx scripts/match-test.ts",
     "dev": "vercel dev",
     "dev:vite": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build && tsc -b",
     "test": "tsx --test shared/*.test.ts",
     "rls-test": "tsx scripts/rls-test.ts",
     "intake-e2e": "tsx scripts/intake-e2e.ts"
