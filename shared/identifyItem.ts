@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CATEGORIES, CategoriesSchema, MAX_CATEGORIES } from "./categories";
+import { CATEGORIES, CategoriesSchema, MAX_CATEGORIES } from "./categories.js";
 
 // What the vision model returns for one single-item photo.
 export const IdentifiedItemSchema = z.object({

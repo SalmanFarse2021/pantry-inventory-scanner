@@ -6,8 +6,8 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
-import { IDENTIFY_SYSTEM, IdentifiedItemSchema, parseModelJson } from "../shared/identifyItem";
-import { QuotaError, TIERS, runChain } from "../shared/modelChain";
+import { IDENTIFY_SYSTEM, IdentifiedItemSchema, parseModelJson } from "../shared/identifyItem.js";
+import { QuotaError, TIERS, runChain } from "../shared/modelChain.js";
 
 const admin = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, {
   auth: { persistSession: false },
