@@ -11,6 +11,7 @@ export type IntakeJob = {
   error: string | null
   model_used: string | null
   created_at: string
+  identified: { name: string } | null
   items: { name: string; categories: string[] } | null
 }
 
@@ -36,7 +37,7 @@ export function useIntakeJobs(batchId: string) {
     queryFn: async (): Promise<IntakeJob[]> => {
       const { data, error } = await supabase
         .from('intake_jobs')
-        .select('id, status, quantity, error, model_used, created_at, items(name, categories)')
+        .select('id, status, quantity, error, model_used, created_at, identified, items(name, categories)')
         .eq('batch_id', batchId)
         .order('created_at', { ascending: false })
       if (error) throw error

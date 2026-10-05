@@ -130,7 +130,9 @@ Build the whole path once with the Gemini chain only. Name matching and review c
 
 *Exit criteria:* photograph 10 items, see them appear in order with dots, no manual steps except quantity.
 
-### Phase 3: Matching and review (about 3 days)
+### Phase 3: Matching and review (BUILT 2026-10-05, phone test pending)
+
+*Result so far:* `/api/identify` now matches the Gemini name against the catalog: green resolves to the existing item, yellow stores candidates for review, and a no-match creates the item and shows it yellow once. Review screen at `/staff/review/:jobId` (candidates, live re-matching of the typed name, category picker, manual entry for red and waiting jobs). Daily `/api/sweep` cron retries `waiting_quota` jobs after the reset (needs `CRON_SECRET`). `npm run intake-e2e` covers the scan-twice-same-item flow. Known gap: two scans of the same new product finishing within milliseconds of each other can both create the item. Migration `20261005020000`; drop `resolve_intake_job` once deployed.
 
 - Wire `shared/decideMatch.ts` into `/api/identify`: match the Gemini name against existing items, write green, yellow or new.
 - A pg_trgm shortlist only if the catalog gets large (the word-by-word comparison is cheap for a few hundred items).

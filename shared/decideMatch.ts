@@ -1,4 +1,4 @@
-import { normalizeName, type NormalizedName } from "./normalizeName";
+import { normalizeName, type NormalizedName } from "./normalizeName.js";
 
 // How a new name relates to one existing item's name.
 //   same             every word matches (typos tolerated inside a word), numbers equal

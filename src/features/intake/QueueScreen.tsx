@@ -51,7 +51,7 @@ export function QueueScreen() {
           <li key={job.id} className="flex items-center gap-3 rounded-box bg-base-200 p-2">
             <img src={thumbUrl(job.id)} alt="" className="size-14 rounded-field bg-base-300 object-cover" />
             <div className="min-w-0 flex-1">
-              <div className="truncate font-medium">{job.items?.name ?? statusLabel(job.status)}</div>
+              <div className="truncate font-medium">{job.items?.name ?? job.identified?.name ?? statusLabel(job.status)}</div>
               <div className="truncate text-sm opacity-70">
                 Qty {job.quantity}
                 {job.items && ` · ${job.items.categories.join(', ').replaceAll('_', ' ')}`}
@@ -60,6 +60,11 @@ export function QueueScreen() {
             </div>
             {(job.status === 'queued' || job.status === 'red' || job.status === 'waiting_quota') && (
               <button className="btn btn-xs" onClick={() => retry(job)}>Retry</button>
+            )}
+            {job.status !== 'processing' && (
+              <Link to="/staff/review/$jobId" params={{ jobId: job.id }} className="btn btn-xs btn-outline">
+                {job.status === 'yellow' ? 'Review' : job.status === 'green' ? 'Edit' : 'Enter'}
+              </Link>
             )}
             <StatusDot status={job.status} />
           </li>
