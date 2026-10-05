@@ -2,14 +2,12 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
-import './index.css'
 import { routeTree } from './routeTree.gen'
+import './index.css'
 
 const queryClient = new QueryClient()
 const router = createRouter({ routeTree })
 
-// TanStack Router's standard pattern for typing navigate({ to: ... })/Link calls against this
-// app's actual route tree everywhere, without importing the router instance into every file.
 declare module '@tanstack/react-router' {
   interface Register {
     router: typeof router

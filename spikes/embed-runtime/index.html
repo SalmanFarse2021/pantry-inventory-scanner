@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Embed runtime spike</title>
+  <style>
+    body { font: 16px -apple-system, system-ui, sans-serif; margin: 0; padding: 16px; max-width: 640px; }
+    h1 { font-size: 20px; margin: 0 0 12px; }
+    section { border: 1px solid #ccc; border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+    h2 { font-size: 15px; margin: 0 0 8px; }
+    label { display: inline-block; margin-right: 12px; }
+    select, button { font-size: 16px; padding: 8px 12px; margin: 4px 4px 4px 0; }
+    button { border-radius: 8px; border: 1px solid #888; background: #f4f4f4; }
+    button:disabled { opacity: .4; }
+    #status { font-size: 14px; color: #555; min-height: 1.4em; }
+    textarea { width: 100%; height: 280px; font: 12px ui-monospace, monospace; box-sizing: border-box; }
+  </style>
+</head>
+<body>
+  <h1>CLIP embedding spike</h1>
+
+  <section>
+    <h2>1. Load model</h2>
+    <label>device <select id="device"><option>wasm</option><option>webgpu</option></select></label>
+    <label>dtype <select id="dtype"><option>q8</option><option>fp16</option><option>fp32</option></select></label>
+    <button id="load">Load model</button>
+    <div id="status"></div>
+  </section>
+
+  <section>
+    <h2>2. Benchmark and desktop parity (10 bundled photos)</h2>
+    <button id="bench" disabled>Run benchmark</button>
+    <button id="stress" disabled>Stress: 30 in a row</button>
+  </section>
+
+  <section>
+    <h2>3. Your own photo</h2>
+    <input id="photo" type="file" accept="image/*" capture="environment" disabled />
+  </section>
+
+  <section>
+    <h2>Report (copy and send)</h2>
+    <button id="copy">Copy report</button>
+    <button id="clear">Clear</button>
+    <textarea id="report" readonly></textarea>
+  </section>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,8 +1,4 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/generate-daily-bundle",
-      "schedule": "0 0 * * *"
-    }
-  ]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
 }
