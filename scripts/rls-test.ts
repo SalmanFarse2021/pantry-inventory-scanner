@@ -133,6 +133,28 @@ async function main() {
       const wDeleteOwn = await worker.client.from("items").delete().eq("id", wNew.data.id).select();
       check("worker can delete items they created", wDeleteOwn.data?.length === 1, wDeleteOwn);
     }
+    // Phase 4 stock functions.
+    const before = await stockOf(itemId);
+    const wAdjust = await worker.client.rpc("adjust_stock", { p_item_id: itemId, p_delta: 4 });
+    check("worker can adjust stock up", !wAdjust.error && (await stockOf(itemId)) === before + 4, wAdjust);
+    const wOverdraw = await worker.client.rpc("adjust_stock", { p_item_id: itemId, p_delta: -(before + 5) });
+    check("adjust_stock cannot take stock below zero", !!wOverdraw.error && (await stockOf(itemId)) === before + 4, wOverdraw);
+    const wZero = await worker.client.rpc("adjust_stock", { p_item_id: itemId, p_delta: 0 });
+    check("adjust_stock rejects a zero change", !!wZero.error, wZero);
+    const guestAdjust = await guest.rpc("adjust_stock", { p_item_id: itemId, p_delta: 1 });
+    check("anonymous cannot adjust stock", !!guestAdjust.error, guestAdjust);
+    const outsiderAdjust = await outsider.client.rpc("adjust_stock", { p_item_id: itemId, p_delta: 1 });
+    check("non-staff login cannot adjust stock", !!outsiderAdjust.error, outsiderAdjust);
+    const guestOut = await guest.rpc("mark_out_of_stock", { p_item_id: itemId });
+    check("anonymous cannot mark out of stock", !!guestOut.error, guestOut);
+    const outsiderOut = await outsider.client.rpc("mark_out_of_stock", { p_item_id: itemId });
+    check("non-staff login cannot mark out of stock", !!outsiderOut.error, outsiderOut);
+    const wOut = await worker.client.rpc("mark_out_of_stock", { p_item_id: itemId });
+    check("worker can mark out of stock", !wOut.error && (await stockOf(itemId)) === 0, wOut);
+    const wOutAgain = await worker.client.rpc("mark_out_of_stock", { p_item_id: itemId });
+    check("marking an empty item out is a no-op", !wOutAgain.error && (await stockOf(itemId)) === 0, wOutAgain);
+    await admin.from("inventory_events").insert({ item_id: itemId, type: "intake", delta: 5, actor: manager.id }).throwOnError();
+
     const wStaffRead = await worker.client.from("staff").select("user_id");
     check("worker sees only their own staff row", wStaffRead.data?.length === 1 && wStaffRead.data[0].user_id === worker.id, wStaffRead);
     const wPromote = await worker.client.from("staff").update({ role: "manager" }).eq("user_id", worker.id).select();

@@ -143,7 +143,9 @@ Build the whole path once with the Gemini chain only. Name matching and review c
 
 *Exit criteria:* scanning the same item twice resolves to one item with no duplicate; "Ritz Cracker" and "Ritz Crackers" resolve to one item; a sibling variety never resolves green.
 
-### Phase 4: Inventory management (about 3 days)
+### Phase 4: Inventory management (BUILT 2026-10-05, phone test pending)
+
+*Result so far:* `/staff/inventory` lists every item with live stock, search (name, brand, category), category and availability filters, and sorting (logic in `shared/inventoryView.ts`, unit-tested). Rows have +1 / -1 and "Mark out"; `/staff/items/:itemId` has add/remove by amount, edit of name, brand, categories and limit per visit, and delete. Migration `20261005030000` adds `adjust_stock` and `mark_out_of_stock` (row-locked, never below zero, written as ledger adjustments); `npm run rls-test` now has 9 more checks (all pass). Delete follows the existing RLS (manager, or the worker who added the item) and removes the item's stock history with it.
 
 - Update screen: list of all items with search, sort, filter by category and availability.
 - Quick actions per row (adjust, mark out of stock), full edit on the detail page, delete.

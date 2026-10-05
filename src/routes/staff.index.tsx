@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { IconCamera, IconListDetails } from '@tabler/icons-react'
+import { IconBoxSeam, IconCamera, IconListDetails } from '@tabler/icons-react'
 
 export const Route = createFileRoute('/staff/')({
   component: () => (
@@ -10,6 +10,9 @@ export const Route = createFileRoute('/staff/')({
       </Link>
       <Link to="/staff/queue" className="btn btn-outline btn-lg">
         <IconListDetails /> Queue
+      </Link>
+      <Link to="/staff/inventory" className="btn btn-outline btn-lg">
+        <IconBoxSeam /> Inventory
       </Link>
     </main>
   ),
