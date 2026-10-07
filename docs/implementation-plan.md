@@ -12,8 +12,8 @@ Status as of 2026-10-05. Builds on `docs/feasibility-findings.md` (what we teste
 | LLM fallback chain | `gemini-3.5-flash-lite`, then `gemini-3.1-flash-lite`, then `gemma-4-31b-it`, then manual entry (see findings 3.1c for retry rules). |
 | Surfaces | One app, two areas: public student pages, and `/staff` behind login. One backend (Supabase). |
 | Security | Enforced in the database (row-level security), never by hiding UI. |
-| Staff access | Invite-only allowlist, managed by the pantry manager. |
-| Student view | In stock / out of stock (optionally "low"), no exact counts. Self-checkout by tapping an item and choosing a quantity. Honor system, no student identity. |
+| Staff access | **SUPERSEDED 2026-10-07 by section 9.** Pantry staff will not do data entry, and the project team will not be around to run it. Contributions are open to anyone with a UTA email, with no human moderator. The staff allowlist becomes an optional admin role. |
+| Student view | In stock / low / out of stock, no exact counts (quantity is gone from the public product, see section 9). Self-checkout by tapping an item and choosing a quantity. Honor system, no student identity. |
 | Worker checkout | Not required. Students check themselves out (QR at the exit). Optional photo or search checkout for workers later. |
 | Stock accuracy | Weekly stock check (post-demo) using the same Gemini-first identification and name match. |
 | Demo | Live, two presenters, partly pre-seeded data. |
@@ -166,6 +166,16 @@ Build the whole path once with the Gemini chain only. Name matching and review c
 - **Install as a PWA** on both presenter phones, and test on the venue network if possible.
 - Time an inventory run (for example, 20 items in N minutes) to quote to the manager.
 
+### Phase 7: Crowdsourced model (decided 2026-10-07, see section 9)
+
+Phases 2 to 4 were built around staff-entered quantities in a ledger. Section 9 changes the data model, so this phase reworks them rather than adding to them.
+
+- Migration: `stock_reports`, `contributors`, public status view (replaces count-based `available_items`), pending-item state. Keep `inventory_events` only if self-checkout still needs a ledger; otherwise drop it.
+- Intake API: add the safety flags to the Gemini schema and reject on them; delete photos after processing; remove free-text entry for contributors.
+- Contributor sign-in (UTA email magic link), rate limits, automatic reputation.
+- Capture flow rewritten as "report this item" (in stock / low / out) plus "add a new item".
+- RLS tests for the new rules (contributors cannot write status directly, cannot read other people's photos, etc).
+
 ### After the demo (only if approved)
 
 - Weekly stock check flow (scan, show system count, enter actual, save the difference as an adjustment).
@@ -200,10 +210,71 @@ Put the matching decisions (`normalizeName`, `decideMatch`) in `shared/` as pure
 | Anonymous checkout abused | Server-side caps, ledger, manager can reverse; honor system accepted |
 | No UTA approval | Demo is built to be showable to workers in person; nothing here depends on their systems |
 | Drift in counts | Weekly stock check (post-demo), adjustments recorded in the ledger |
-| Single maintainer | Keep stack small, document setup, own accounts under a shared team email |
+| Single maintainer | Keep stack small, document setup, own accounts under a shared team email. Section 9 removes the need for anyone to moderate day to day. |
+| Bad or malicious contributors, inappropriate photos | Section 9: photos are never public, AI screening, corroboration, automatic reputation, rate limits |
+| Shared Gemini free-tier quota exhausted by open contributors | Per-user daily rate limits (section 9); counters already exist in `api_usage`. Tier choice and billing is a handover decision |
 
 ## 8. First three actions
 
 1. Clean the old app out of the working tree (Phase 1) and commit the new `shared/`, `scripts/`, `spikes/` and `docs/`.
 2. Create the Supabase project and write the schema and RLS migrations with the access tests.
 3. Scaffold the new frontend and start the intake slice (Phase 2).
+
+## 9. Crowdsourcing model (decided 2026-10-07)
+
+### 9.1 Constraints
+
+- Pantry staff are busy stocking and will not enter data. They only allow access on non-open days.
+- The team will not maintain this after the project, and the professor expects a product that can run without us. So **no design may depend on a person approving, moderating or cleaning data on a schedule.**
+- Contributors are not a trusted group. Anyone can photograph an item, including someone who wants to cause trouble.
+- Data is imperfect and we accept that. The public product shows availability only (In stock / Low / Out) with a freshness label, never a quantity.
+
+Everything below is automatic. A human admin (the pantry manager, or whoever inherits the project) can undo or ban, but nothing waits on them.
+
+### 9.2 Principle: a photo is input, never content
+
+The inappropriate-upload problem is solved by never publishing a contributor's photo.
+
+- A photo goes to private storage, goes through Gemini, and is **deleted once processed** (keep at most 7 days only for failed jobs, so a retry works). There is nothing to moderate afterwards, and no faces or student photos are retained, which also helps the privacy and FERPA concern in the findings.
+- Students see only text we derived (name, category) and a category icon or stock image, never what a contributor uploaded.
+- Contributors cannot type free text that reaches the public. Names come from Gemini reading the label. A manual fix is a choice from candidates or the fixed category list, not a text box. (The current manual-entry screen must be restricted for public contributors.)
+
+### 9.3 Screening every photo (before anything is stored or counted)
+
+Extend the Gemini response schema with `is_pantry_item` (packaged or whole food, a pantry or hygiene item), `contains_person`, `contains_inappropriate_content`, and `label_readable`. Reject the job (red, no data created) if the first is false or either of the others is true. A report with `label_readable` false cannot create a new item. This reuses the one Gemini call already made per photo, so it adds no cost or latency.
+
+### 9.4 Updating an existing item (In stock / Low / Out)
+
+- The contributor chooses the item and takes a photo; Gemini's name must **match that item** (the existing `decideMatch` green path). A photo of something else is rejected, so you cannot mark "rice" out with a picture of a cat.
+- The report is stored in `stock_reports` (item, contributor, status, time, `near_pantry` flag). It does not change the public status by itself.
+- **Public status is computed** from recent reports, weighted by contributor reputation and decayed with age:
+  - "Out" needs agreement from two different contributors within a window, or one high-reputation contributor. One bad report alone cannot flip an item to out.
+  - "In stock" is accepted from one report, since the harm of a false positive is small and a quick correction follows.
+  - No confirmation in 7 days shows **Unknown**, not a stale "In stock".
+- Every public item shows "last confirmed N hours ago".
+
+### 9.5 Adding a new item (the case where staff will not help)
+
+- Photo passes screening, Gemini reads the name and categories, no existing item matches, so a **pending item** is created. It is invisible to students.
+- It becomes public when a **second, different contributor** photographs the same item and Gemini's name matches the pending one (the same word-by-word matching, so the two photos agree independently). One person cannot approve their own item.
+- An uncorroborated pending item **expires after 14 days** and is deleted by the existing sweep cron. Nobody needs to clean up.
+- This uses only machinery we already have (identify, `decideMatch`, the sweep).
+
+### 9.6 Abuse controls that need no moderator
+
+- **Sign-in:** magic link restricted to the UTA email domain. This ties actions to an account without an allowlist someone must maintain, and makes mass account creation harder.
+- **Rate limits:** per-user caps on reports and new items per day, enforced in the database. This also protects the shared Gemini quota.
+- **Reputation, computed not managed:** a contributor's reports that later agree with other people's raise their weight; reports that are repeatedly contradicted lower it, and below a threshold their reports are ignored automatically. No one has to decide who is trusted.
+- **Location (soft signal only):** the capture screen asks for location and records `near_pantry` (within a radius of the pantry). Near-pantry reports get more weight; far or missing location reports count less but are not blocked, because GPS fails indoors and can be spoofed. Camera-only capture (no gallery picker) so photos cannot be reused.
+- **Audit and undo:** every report is attributable and reversible by an admin, but this is an optional safety net.
+
+### 9.7 What this does not solve (said plainly)
+
+- A determined person with a real photo of a real item can still submit a false report. The effect is bounded: a false "out" needs a second person to count, a false "in stock" is corrected by the next honest report, and everything fades to Unknown after 7 days. The result is a briefly wrong dot, not corrupted data.
+- With few active contributors, new items and "out" reports will be slow to confirm. The product depends on enough regular users; that is a real adoption risk and should be said in the final presentation.
+- The Gemini key and its quota are a hidden dependency. Whoever inherits this needs to own a key; per-user limits only soften this.
+- Self-checkout (students tapping items they took) can feed the same signal in a later phase, e.g. several checkouts of an item without any restock report.
+
+### 9.8 Sustainability story for the course
+
+The product keeps working without us because: no staff time is needed; no moderation queue exists; bad data decays on its own; storage stays small because photos are deleted; and the only recurring cost is the Gemini quota. The handover checklist is: transfer the Vercel and Supabase accounts, set the Gemini key, and name an optional admin.
