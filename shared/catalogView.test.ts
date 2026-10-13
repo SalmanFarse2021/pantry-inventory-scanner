@@ -7,7 +7,8 @@ const row = (o: Partial<CatalogRow> & { name: string }): CatalogRow => ({
   category: "snacks",
   thumbnail_path: null,
   availability: "in_stock",
-  limit_per_visit: null,
+  updated_at: null,
+  updated_by_name: null,
   ...o,
 });
 

@@ -18,6 +18,8 @@ Status as of 2026-10-05. Builds on `docs/feasibility-findings.md` (what we teste
 | Stock accuracy | Weekly stock check (post-demo) using the same Gemini-first identification and name match. |
 | Demo | Live, two presenters, partly pre-seeded data. |
 
+> **Update 2026-10-06:** the "Student view" and "Worker checkout" rows above still hold for walk-in checkout, but students can now also sign in and reserve items before an appointment. See `docs/reservations-plan.md` for holds, orders, open hours, back-in-stock alerts and video intake.
+
 ## 2. Open decisions (need an answer before or during the phase noted)
 
 1. **Where embeddings run** (MOOT for intake, since photo embeddings were dropped; if revived later: in the browser, q8 on WASM, about 200ms per photo on an iPhone; see findings 3.4c). Original question: In the browser (transformers.js, no server, but a roughly 50-90 MB first download per phone), or on a server (needs a host that can fit the model runtime; Vercel's function size limits may be a problem, so verify). Default plan: try the browser first.

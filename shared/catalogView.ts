@@ -8,7 +8,8 @@ export type CatalogRow = {
   category: string | null;
   thumbnail_path: string | null;
   availability: PublicAvailability;
-  limit_per_visit: number | null;
+  updated_at: string | null;
+  updated_by_name: string | null;
 };
 
 export type CatalogFilter = {
