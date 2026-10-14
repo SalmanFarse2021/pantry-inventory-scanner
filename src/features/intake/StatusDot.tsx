@@ -6,6 +6,7 @@ const DOT: Record<JobStatus, { cls: string; label: string }> = {
   green: { cls: 'bg-success', label: 'Added' },
   yellow: { cls: 'bg-warning', label: 'Needs review' },
   red: { cls: 'bg-error', label: 'Failed, enter manually' },
+  rejected: { cls: 'bg-error', label: 'Not accepted' },
   // Neutral on purpose: waiting for the daily quota reset is not a failure.
   waiting_quota: { cls: 'bg-neutral', label: 'Waiting for quota' },
 }

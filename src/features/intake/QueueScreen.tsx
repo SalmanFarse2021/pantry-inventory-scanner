@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
+import { REJECT_LABELS } from '../../../shared/guardrail'
 import { StatusDot, statusLabel } from './StatusDot'
 import { useCaptureQueue } from './useCaptureQueue'
 import { useIntakeJobs, type IntakeJob } from './useIntakeJobs'
@@ -56,6 +57,7 @@ export function QueueScreen() {
                 Qty {job.quantity}
                 {job.items && ` · ${job.items.categories.join(', ').replaceAll('_', ' ')}`}
                 {job.status === 'red' && job.error && ` · ${job.error}`}
+                {job.status === 'rejected' && job.reject_reason && ` · ${REJECT_LABELS[job.reject_reason]}`}
               </div>
             </div>
             {(job.status === 'queued' || job.status === 'red' || job.status === 'waiting_quota') && (

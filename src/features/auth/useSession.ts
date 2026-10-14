@@ -15,5 +15,8 @@ export function useSession() {
   return session
 }
 
-export const displayNameOf = (session: Session) =>
-  (session.user.user_metadata.display_name as string | undefined) ?? session.user.email ?? 'Account'
+export const displayNameOf = (session: Session) => {
+  const { first_name, last_name, display_name } = session.user.user_metadata as Record<string, string | undefined>
+  const full = [first_name, last_name].filter(Boolean).join(' ')
+  return full || display_name || session.user.email || 'Account'
+}

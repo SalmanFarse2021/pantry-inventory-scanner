@@ -1,8 +1,10 @@
 // Identify one intake job: Gemini chain, then name match, then write the result.
 // Shared by /api/identify (a worker's request) and /api/sweep (the daily quota retry).
 
+import { FinishReason, HarmBlockThreshold, HarmCategory } from "@google/genai";
 import { z } from "zod";
-import { IDENTIFY_SYSTEM, IdentifiedItemSchema, parseModelJson } from "../../shared/identifyItem.js";
+import { decide, ModelOutputSchema, type Decision } from "../../shared/guardrail.js";
+import { IDENTIFY_SYSTEM, parseModelJson } from "../../shared/identifyItem.js";
 import { matchJob, type CatalogItem } from "../../shared/matchJob.js";
 import { QuotaError, TIERS, runChain } from "../../shared/modelChain.js";
 import { admin, ai } from "./clients.js";
@@ -33,7 +35,23 @@ async function loadCatalog(): Promise<CatalogItem[]> {
   }
 }
 
-export type JobOutcome = "green" | "yellow" | "red" | "waiting_quota";
+export type JobOutcome = "green" | "yellow" | "red" | "waiting_quota" | "rejected";
+
+// Strictest filter on every category. Applied to Gemini models only; not verified for gemma.
+const SAFETY_SETTINGS = [
+  HarmCategory.HARM_CATEGORY_HARASSMENT,
+  HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+  HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+  HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+].map((category) => ({ category, threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE }));
+
+const BLOCKED_FINISH: (FinishReason | undefined)[] = [
+  FinishReason.SAFETY,
+  FinishReason.PROHIBITED_CONTENT,
+  FinishReason.BLOCKLIST,
+  FinishReason.IMAGE_SAFETY,
+  FinishReason.IMAGE_PROHIBITED_CONTENT,
+];
 
 export async function runJob(jobId: string, claimed: { photo_path: string; attempts: number }): Promise<JobOutcome> {
   try {
@@ -42,7 +60,7 @@ export async function runJob(jobId: string, claimed: { photo_path: string; attem
     const data = Buffer.from(await blob.arrayBuffer()).toString("base64");
     const day = quotaDay();
 
-    const result = await runChain(TIERS, {
+    const result = await runChain<Decision>(TIERS, {
       call: async (model) => {
         try {
           const response = await ai.models.generateContent({
@@ -59,10 +77,15 @@ export async function runJob(jobId: string, claimed: { photo_path: string; attem
             config: {
               systemInstruction: IDENTIFY_SYSTEM,
               responseMimeType: "application/json",
-              responseJsonSchema: z.toJSONSchema(IdentifiedItemSchema),
+              responseJsonSchema: z.toJSONSchema(ModelOutputSchema),
+              ...(model.startsWith("gemini") && { safetySettings: SAFETY_SETTINGS }),
             },
           });
-          return IdentifiedItemSchema.parse(parseModelJson(response.text ?? ""));
+          // Gemini's own filter fired on the photo or the answer: that is a rejection, not a retry.
+          if (response.promptFeedback?.blockReason || BLOCKED_FINISH.includes(response.candidates?.[0]?.finishReason)) {
+            return { kind: "reject", reason: "inappropriate" };
+          }
+          return decide(ModelOutputSchema.parse(parseModelJson(response.text ?? "")));
         } catch (err) {
           if (err instanceof Error && /"code":\s*429/.test(err.message)) throw new QuotaError(err.message);
           throw err;
@@ -91,7 +114,17 @@ export async function runJob(jobId: string, claimed: { photo_path: string; attem
       return status;
     }
 
-    const item = result.value;
+    if (result.value.kind === "reject") {
+      // Nothing is created. The thumbnail bucket is public, so take the photo out of it; the
+      // full-size copy stays in the private bucket for staff to audit.
+      await admin.storage.from("thumbnails").remove([`${jobId}.jpg`]);
+      await admin
+        .from("intake_jobs")
+        .update({ status: "rejected", reject_reason: result.value.reason, identified: null, model_used: result.model, attempts, error: null })
+        .eq("id", jobId);
+      return "rejected";
+    }
+    const item = result.value.item;
     // Keep what Gemini read, so a worker can resolve the job from the review screen.
     await admin.from("intake_jobs").update({ identified: item, model_used: result.model, attempts }).eq("id", jobId);
 

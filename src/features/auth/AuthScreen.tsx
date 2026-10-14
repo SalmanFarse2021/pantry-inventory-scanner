@@ -8,7 +8,8 @@ type Mode = 'signin' | 'register'
 export function AuthScreen() {
   const navigate = useNavigate()
   const [mode, setMode] = useState<Mode>('signin')
-  const [name, setName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -25,6 +26,8 @@ export function AuthScreen() {
       return
     }
 
+    const first = firstName.trim()
+    const last = lastName.trim()
     setBusy(true)
     const trimmed = email.trim()
     if (mode === 'signin') {
@@ -35,7 +38,13 @@ export function AuthScreen() {
       const { data, error } = await supabase.auth.signUp({
         email: trimmed,
         password,
-        options: { data: { display_name: name.trim() } },
+        options: {
+          data: {
+            first_name: first,
+            last_name: last,
+            display_name: `${first} ${last}`,
+          },
+        },
       })
       if (error) setError(error.message)
       else if (data.session) await navigate({ to: '/' })
@@ -57,17 +66,35 @@ export function AuthScreen() {
 
       <form onSubmit={submit} className="flex flex-col gap-3">
         {mode === 'register' && (
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Display name</span>
-            <input
-              required
-              maxLength={40}
-              className="input w-full"
-              placeholder="Shown next to the items you update"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </label>
+          <>
+            <p className="text-sm text-base-content/70">
+              Your name is shown publicly next to the items you update.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex flex-col gap-1">
+                <span className="text-sm">First name</span>
+                <input
+                  required
+                  maxLength={20}
+                  autoComplete="given-name"
+                  className="input w-full"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm">Last name</span>
+                <input
+                  required
+                  maxLength={19}
+                  autoComplete="family-name"
+                  className="input w-full"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                />
+              </label>
+            </div>
+          </>
         )}
         <label className="flex flex-col gap-1">
           <span className="text-sm">UTA email</span>

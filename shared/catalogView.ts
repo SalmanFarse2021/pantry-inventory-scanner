@@ -20,9 +20,7 @@ export type CatalogFilter = {
 
 const norm = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 
-const RANK: Record<PublicAvailability, number> = { in_stock: 0, low: 1, out: 2 };
-
-// Search matches every typed word against name or category. Available items come first, then by name.
+// Search matches every typed word against name or category. Most recently updated first (never-updated last), then by name.
 export function filterCatalog(rows: CatalogRow[], f: CatalogFilter): CatalogRow[] {
   const words = norm(f.search).split(/\s+/).filter(Boolean);
   return rows
@@ -33,5 +31,5 @@ export function filterCatalog(rows: CatalogRow[], f: CatalogFilter): CatalogRow[
       const haystack = norm(`${r.name} ${(r.category ?? "").replaceAll("_", " ")}`);
       return words.every((w) => haystack.includes(w));
     })
-    .sort((a, b) => RANK[a.availability] - RANK[b.availability] || a.name.localeCompare(b.name));
+    .sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? "") || a.name.localeCompare(b.name));
 }

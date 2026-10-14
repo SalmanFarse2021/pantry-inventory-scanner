@@ -1,14 +1,16 @@
 import { useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
+import type { RejectReason } from '../../../shared/guardrail'
 
-export type JobStatus = 'queued' | 'processing' | 'green' | 'yellow' | 'red' | 'waiting_quota'
+export type JobStatus = 'queued' | 'processing' | 'green' | 'yellow' | 'red' | 'waiting_quota' | 'rejected'
 
 export type IntakeJob = {
   id: string
   status: JobStatus
   quantity: number
   error: string | null
+  reject_reason: RejectReason | null
   model_used: string | null
   created_at: string
   identified: { name: string } | null
@@ -37,7 +39,7 @@ export function useIntakeJobs(batchId: string) {
     queryFn: async (): Promise<IntakeJob[]> => {
       const { data, error } = await supabase
         .from('intake_jobs')
-        .select('id, status, quantity, error, model_used, created_at, identified, items(name, categories)')
+        .select('id, status, quantity, error, reject_reason, model_used, created_at, identified, items(name, categories)')
         .eq('batch_id', batchId)
         .order('created_at', { ascending: false })
       if (error) throw error

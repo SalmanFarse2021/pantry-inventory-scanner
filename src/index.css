@@ -1,2 +1,30 @@
 @import "tailwindcss";
 @plugin "daisyui";
+
+/* Color overrides only: everything else comes from daisyUI's built-in light theme. */
+@plugin "daisyui/theme" {
+  name: "light";
+  default: true;
+
+  --color-base-100: #f9fbff; /* Ghost White */
+  --color-base-200: #eceef0; /* Platinum */
+  --color-base-300: #d9dcdf;
+  --color-base-content: #1e1f22; /* Carbon Black */
+
+  --color-primary: #ff7700; /* Harvest Orange */
+  --color-primary-content: #1e1f22;
+
+  --color-secondary: #0099ff; /* Dodger Blue */
+  --color-secondary-content: #ffffff;
+}
+
+@plugin "daisyui/theme" {
+  name: "dark";
+  prefersdark: true;
+
+  --color-primary: #ff7700; /* Harvest Orange */
+  --color-primary-content: #1e1f22;
+
+  --color-secondary: #0099ff; /* Dodger Blue */
+  --color-secondary-content: #ffffff;
+}

@@ -21,8 +21,14 @@ const rows = [
 const base = { search: "", category: null, hideOut: false };
 const names = (r: CatalogRow[]) => r.map((x) => x.name);
 
-test("available items first, out of stock last, then by name", () => {
-  assert.deepEqual(names(filterCatalog(rows, base)), ["Apple Juice", "Café Mocha", "Ritz Crackers", "Barilla Spaghetti"]);
+test("most recently updated first, never-updated last, ties by name", () => {
+  const dated = [
+    row({ name: "Never Updated" }),
+    row({ name: "Old", updated_at: "2026-01-01T00:00:00Z" }),
+    row({ name: "New", updated_at: "2026-03-01T00:00:00Z", availability: "out" }),
+    row({ name: "Also Never" }),
+  ];
+  assert.deepEqual(names(filterCatalog(dated, base)), ["New", "Old", "Also Never", "Never Updated"]);
 });
 
 test("search ignores accents and case, and matches category words", () => {
