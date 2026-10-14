@@ -4,14 +4,14 @@ Status as of 2026-10-05. Based on a small prototype, two shelf test photos, and 
 
 ## 1. Goal and constraints
 
-**Goal:** a phone-based inventory system for a school pantry. Staff log items as they arrive; the system identifies and categorizes them; checkout updates the inventory. The pantry has no existing item list and stock changes constantly, so the main purpose is a current, browsable list of what is available (to help students plan appointments).
+**Goal:** a phone-based inventory system for a school pantry. Users log items as they arrive; the system identifies and categorizes them; the user sets how much is left (in stock, low, out). The pantry has no existing item list and stock changes constantly, so the main purpose is a current, browsable list of what is available (to help students plan appointments).
 
 **Constraints that shaped the findings:**
-- Logging every item must be low-effort for staff, or the system won't be adopted.
-- Staff handle counting and verification of quantities. The system only needs to identify and categorize.
-- Hidden or occluded items are accepted as a known limit; the worker handles them.
+- Logging every item must be low-effort for users, or the system won't be adopted.
+- There are no exact counts. The system only needs to identify and categorize; the user sets the stock level.
+- Hidden or occluded items are accepted as a known limit; the user handles them.
 - No paid services for now. Limited storage (no room for a 13 GB dataset).
-- Identification will sometimes be wrong; a worker confirmation step is expected.
+- Identification will sometimes be wrong; a user confirmation step is expected.
 
 ## 2. What was tested
 
@@ -38,7 +38,7 @@ Test photos: one 11-item shelf (cluttered background, some items overlapping) an
 
 ### 3.1b Single-item photo test (2026-10-05)
 
-Staff-style capture: one item per photo, held in hand, 10 photos of mixed pantry, supplement, personal-care and household items. Run with `npm run identify` on `gemini-3.5-flash`, one photo per request, sequentially. Results were checked against a manual read of the same photos (no ground-truth sheet).
+Typical capture: one item per photo, held in hand, 10 photos of mixed pantry, supplement, personal-care and household items. Run with `npm run identify` on `gemini-3.5-flash`, one photo per request, sequentially. Results were checked against a manual read of the same photos (no ground-truth sheet).
 
 | Item (Gemini's name) | Size returned | Category returned | Verdict |
 |---|---|---|---|
@@ -56,7 +56,7 @@ Staff-style capture: one item per photo, held in hand, 10 photos of mixed pantry
 - **10/10 correct on item name and category sensibility.** Misses were detail only: variety/strength dropped (Salted, 500 mg) and one size inferred rather than read. Non-food items worked as well as food.
 - Every item was marked `high` confidence, including the two with detail issues, so the confidence field still does not separate good from questionable answers.
 - **Latency:** 13.7s to 77.6s per photo (about 5 minutes for 10, sequential). Only about 1,700-1,900 total tokens per call, so the time is unlikely to be the work itself; likely server load, plus our own serial loop. Retries are included in the timer but are not logged, so this is not yet confirmed.
-- **Decision from this test:** the staff photo is the source of truth and is shown on the website, so small label mismatches are acceptable as long as name and category are right. Categories may need refining (peanut butter and hot cocoa landed in debatable buckets). Latency is not a concern because processing will be queued and does not need to be instant.
+- **Decision from this test:** the user's photo is the source of truth and is shown on the website, so small label mismatches are acceptable as long as name and category are right. Categories may need refining (peanut butter and hot cocoa landed in debatable buckets). Latency is not a concern because processing will be queued and does not need to be instant.
 - **Not tested yet:** several photos in one API request (this run was one photo per request, sequential, not concurrent), look-alike or flavor-variant items, harder photos (glare, partial labels, produce).
 
 ### 3.1c Free-tier quotas and model comparison (2026-10-05)
@@ -79,13 +79,13 @@ Staff-style capture: one item per photo, held in hand, 10 photos of mixed pantry
 | gemma-4-31b-it | 4/10 | 6 min | 5 calls failed with server 500, 1 returned invalid JSON. The 4 successes were correct. |
 
 - Both flash-lite models matched the baseline on name and category for all 10 items, and were far faster. The earlier slowness was specific to `gemini-3.5-flash`, not inherent to the task.
-- All models dropped "Salted" (peanut butter) and "500 mg" (niacinamide), and flash-lite shortened "Kimono Mom's" to "Kimono Mom". Accepted, since the staff photo is the source of truth.
+- All models dropped "Salted" (peanut butter) and "500 mg" (niacinamide), and flash-lite shortened "Kimono Mom's" to "Kimono Mom". Accepted, since the user's photo is the source of truth.
 - **Gemma second pass** (`gemma-4-31b-it`, 1 photo per request, one retry allowed on a bad answer): 8/10 identified correctly. Three of those needed a second attempt. Two photos still failed after two attempts (photo 4: two server 500s, which also failed in the first pass, so probably specific to that image; photo 9: invalid JSON, then a 500). The invalid JSON was valid JSON followed by extra text, so a more tolerant parser might avoid some retries. Gemma is slower (3-65s per call) and less reliable than flash-lite, but has a much larger quota (14,400/day).
 - **Decided plan (fallback chain), per photo:**
   1. `gemini-3.5-flash-lite` (500/day)
   2. `gemini-3.1-flash-lite` (separate 500/day bucket)
   3. `gemma-4-31b-it` (14,400/day)
-  4. Manual entry by the user; the photo and quantity are already saved, so nothing is lost.
+  4. Manual entry by the user; the photo and status are already saved, so nothing is lost.
   Retry rules: a bad answer (invalid JSON, schema mismatch, server 500) gets one retry on the same model, then moves to the next tier. A 429 moves to the next tier immediately, without retrying. If every tier is out of quota, queue and retry after the daily reset instead of sending the item straight to manual entry. Speed is not a concern.
 - Open detail: different models may name or categorize the same item differently, so store which model produced each result.
 - **Not yet tested:** several photos in one request (blocked by the quota at the time), look-alike items, harder photos.
@@ -95,14 +95,14 @@ Staff-style capture: one item per photo, held in hand, 10 photos of mixed pantry
 - The model returns a bounding box per item in the same call as the name. The script crops from the full-resolution original and saves 512px thumbnails.
 - **Box quality depends on the model.** `gemini-2.5-flash` boxes were loose and sometimes shifted (a jar top was clipped). `gemini-3.5-flash` boxes were noticeably better and tight on the 4-item photo.
 - **Overlapping items crop poorly** (a bottle behind a carton, a package in front of a box). This is a limit of the photo, not the model.
-- Practical mitigations: tell staff to spread items in one layer on a plain surface, cap batches at roughly 5-6, warn and ask for a retake if boxes overlap heavily, and pad crops 5-8% (currently 2%, not yet changed).
+- Practical mitigations: tell users to spread items in one layer on a plain surface, cap batches at roughly 5-6, warn and ask for a retake if boxes overlap heavily, and pad crops 5-8% (currently 2%, not yet changed).
 
 ### 3.3 Barcode approach
 
 Barcodes are deterministic and fast, and give brand and size from a database instead of from a label. They cannot cover everything (produce, loose goods, store brands, imports, repackaged items), so photo + AI remains the fallback.
 
 **Open Food Facts (free):**
-- Rate limits (from their docs): 15 requests/min/IP for product reads, 10/min/IP for searches. Limits are per IP, so workers on one school network, or all requests routed through one server, share one budget.
+- Rate limits (from their docs): 15 requests/min/IP for product reads, 10/min/IP for searches. Limits are per IP, so users on one school network, or all requests routed through one server, share one budget.
 - The full database dump is about 13 GB, too large to store.
 - Don't rotate IPs or proxies to get around limits; send a descriptive User-Agent.
 - Licensing: the data is ODbL and images are CC-BY-SA, so credit Open Food Facts. Confirm exact terms before redistributing.
@@ -113,7 +113,7 @@ Barcodes are deterministic and fast, and give brand and size from a database ins
 
 **Reducing the storage and rate-limit problem (proposed, not yet built):**
 - Stream the dump and keep only what is needed instead of storing 13 GB: US products only, with a name and a barcode, and a few columns (barcode, name, brand, quantity, category, image URL). Possibly filter further by how often a product is scanned, if that field exists in the data. Expected size is tens to a few hundred MB; this is an estimate to be measured.
-- Store only image URLs in the database. Save a small thumbnail of an item only when a worker logs it (a few hundred items, a few MB).
+- Store only image URLs in the database. Save a small thumbnail of an item only when a user logs it (a few hundred items, a few MB).
 - On a local miss, make one live API call. At normal scanning speeds this rarely approaches 15/min. If it misses or is rate-limited, go straight to the photo + AI flow, with no background queue and no "go back and check".
 
 ### 3.4 Training a classifier / embedding matching
@@ -205,7 +205,7 @@ Pipeline tested: Gemini reads the label and returns a name and categories; the n
 2. Drop package sizes ("32 oz", "240 capsules", "(454 g)"). Keep other numbers ("365", "2%", "500 mg") as part of the product.
 3. Pair up words. A typo inside a word is tolerated: none for words of 4 letters or fewer ("beef" vs "beet" are different items), 1 edit for 5 to 7 letters, 2 for 8 or more. A different, extra or missing word is not a match.
 4. Decision: every word pairs up and the numbers match, with exactly one such candidate, is **green** (resolve to that item). Anything else with a plausible candidate is **yellow** and shows the candidates with how they relate (`subset`: one name only adds words, `number_conflict`, `one_word_off`: one word differs on each side, such as Beef vs Chicken or a misread brand). No candidate is a new item.
-5. A sibling is shown as a yellow candidate, never green, so the worker defaults to "new item" for it.
+5. A sibling is shown as a yellow candidate, never green, so the user defaults to "new item" for it.
 
 Name embeddings were rejected: they would place "beef" and "chicken" next to each other just like photo embeddings did.
 
@@ -219,10 +219,10 @@ Name embeddings were rejected: they would place "beef" and "chicken" next to eac
 | New item (would create a duplicate) | 0 |
 
 - No sibling was ever merged (beef/chicken bouillon, the two avocado oils, the two red pepper powders, Kirkland pepper/salt).
-- The 5 yellows: Kirkland peppercorns reordered with an extra word ("Whole Peppercorns Black Pepper" vs "Whole Black Peppercorns", 2 scans), Chosen oil dropping "Naturally Refined" (2 scans), and one photo read with brand "CJ" instead of "Haetae" (flagged `one_word_off`, correct item offered). All are worker taps, not wrong stock.
+- The 5 yellows: Kirkland peppercorns reordered with an extra word ("Whole Peppercorns Black Pepper" vs "Whole Black Peppercorns", 2 scans), Chosen oil dropping "Naturally Refined" (2 scans), and one photo read with brand "CJ" instead of "Haetae" (flagged `one_word_off`, correct item offered). All are user taps, not wrong stock.
 - Small-print brand misreads varied between photos of the same item ("ChoriPDong", "ChopisDong", "ChopLipDong") but stayed within typo tolerance and matched green.
 - Names were stable between passes; most variation was dropped words and word order.
-- **Categories (fixed list, 1 to 3 per item, primary first, never a new one):** multi-category was used sensibly (bouillon: `soup_broth` + `condiments_sauces_spices`; salt and oils: `condiments_sauces_spices` + `baking`). The category set varied for 2 of 8 items (both oils sometimes added `baking`); the primary never changed. Categories are stored once when an item is created, so this only affects the first scan, and the worker can edit it. Whether oil and salt belong in `baking` depends on UTA's real category list (plan open decision 4).
+- **Categories (fixed list, 1 to 3 per item, primary first, never a new one):** multi-category was used sensibly (bouillon: `soup_broth` + `condiments_sauces_spices`; salt and oils: `condiments_sauces_spices` + `baking`). The category set varied for 2 of 8 items (both oils sometimes added `baking`); the primary never changed. Categories are stored once when an item is created, so this only affects the first scan, and the user can edit it. Whether oil and salt belong in `baking` depends on UTA's real category list (plan open decision 4).
 - **Latency (this run):** median 5.1s per call, 10 of 32 calls over 30s, slowest 145s, about 14 minutes sequential in total. Server load dominated, as in 3.1. Queued processing and the fallback chain are still needed.
 - **Limits:** 8 items, one model tier, the same photos in both passes. Names from `gemini-3.1-flash-lite` and `gemma-4-31b-it` were not compared and may be worded differently (more yellows); store `model_used` per result. Sizes remain unreliable and are not used for matching.
 
@@ -233,12 +233,12 @@ Name embeddings were rejected: they would place "beef" and "chicken" next to eac
 **Intake**
 1. Scan the barcode. Check your own catalog, then the local filtered Open Food Facts copy, then one live API call.
 2. On a miss or no barcode, photograph up to about 5 spread-out items. The vision LLM returns names, categories, and boxes. Crops become the catalog thumbnails.
-3. The worker confirms or edits each row and enters the quantity.
+3. The user confirms or edits each row and sets the stock level.
 4. Save every confirmed product to your own catalog (barcode, name, category, thumbnail, embedding). Each product is looked up or categorized only once ever, so categories stay consistent and repeat donations are instant.
 
-**Categorization:** use one fixed category list as the only valid output. Map external categories into it once per product and store the result. Workers can override, and overrides are saved.
+**Categorization:** use one fixed category list as the only valid output. Map external categories into it once per product and store the result. Users can override, and overrides are saved.
 
-**Checkout:** scan barcodes where available (exact). For items without barcodes, photograph the items, crop, embed, and match against the catalog. Auto-match only above a high score with a clear gap to the runner-up; otherwise ask the worker to choose. Always show a confirmation screen before decrementing stock.
+**Checkout:** scan barcodes where available (exact). For items without barcodes, photograph the items, crop, embed, and match against the catalog. Auto-match only above a high score with a clear gap to the runner-up; otherwise ask the user to choose. Always show a confirmation screen before changing an item's status.
 
 **Open design question:** if the real need is "what is roughly on the shelf" for appointment planning, a periodic photo snapshot with approximate availability may be enough, and an exact ledger may not be needed. If exact counts are needed (reporting, per-student limits, reordering), keep the ledger. This has not been decided.
 
@@ -252,7 +252,7 @@ Name embeddings were rejected: they would place "beef" and "chicken" next to eac
 
 ## 6. Open questions
 
-1. How many items move through per day, and how many workers use it at once?
+1. How many items move through per day, and how many users update it at once?
 2. Is the stock mostly packaged and barcoded, or is there a lot of fresh and loose food?
 3. Are exact counts required, or is approximate availability enough?
 4. Are expiry dates or per-student limits needed?

@@ -8,11 +8,11 @@ export const IdentifiedItemSchema = z.object({
   size: z.string().nullable().describe("Package size ONLY if clearly legible; otherwise null. Never guess."),
   categories: CategoriesSchema.describe(`1 to ${MAX_CATEGORIES} categories from the fixed list, primary first`),
   confidence: z.enum(["high", "medium", "low"]),
-  note: z.string().nullable().describe("Only if something needs the worker's attention"),
+  note: z.string().nullable().describe("Only if something needs the user's attention"),
 });
 export type IdentifiedItem = z.infer<typeof IdentifiedItemSchema>;
 
-export const IDENTIFY_SYSTEM = `You help a school pantry worker log donated items. The photo shows ONE product, usually held \
+export const IDENTIFY_SYSTEM = `You help a school pantry volunteer log donated items. The photo shows ONE product, usually held \
 in hand or on a counter. Return that product, or reject it.
 
 - name: brand + product + variety, the way it would be written on an inventory sheet. Include the variety \

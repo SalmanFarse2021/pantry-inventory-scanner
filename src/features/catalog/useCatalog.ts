@@ -4,6 +4,9 @@ import type { CatalogRow, PublicAvailability } from '../../../shared/catalogView
 
 const KEY = ['public-catalog']
 
+export const thumbUrl = (path: string | null) =>
+  path ? supabase.storage.from('thumbnails').getPublicUrl(path).data.publicUrl : undefined
+
 // The public view: availability, last update time and who made it. Works without login.
 export function useCatalog() {
   return useQuery({

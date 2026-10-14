@@ -43,11 +43,11 @@ const ItemSchema = z.object({
   category: z.enum(CATEGORIES),
   subcategory: z.string(),
   confidence: z.enum(["high", "medium", "low"]),
-  note: z.string().nullable().describe("Only if something needs the worker's attention"),
+  note: z.string().nullable().describe("Only if something needs the user's attention"),
 });
 const ResultSchema = z.object({ items: z.array(ItemSchema) });
 
-const SYSTEM = `You help a school pantry worker log donated items. You receive several photos, each showing ONE \
+const SYSTEM = `You help a school pantry volunteer log donated items. You receive several photos, each showing ONE \
 product held in a hand, each preceded by a "Photo N" label. Return exactly one entry per photo, with "photo" set to N.
 
 - Name it the way a person would write it on an inventory sheet: brand + product (+ variety if it matters).

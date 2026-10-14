@@ -1,12 +1,15 @@
 import { createStore, del, entries, set } from 'idb-keyval'
 
 // A photo waiting to be uploaded. Saved on the phone first so weak Wi-Fi loses nothing.
+import type { PublicAvailability } from '../../../shared/catalogView'
+
 export type PendingCapture = {
   id: string // becomes the intake_jobs id
   batchId: string
   photo: Blob
   thumb: Blob
-  quantity: number
+  // Captures saved before availability existed have none; they upload as in stock.
+  availability?: PublicAvailability
   createdAt: number
 }
 

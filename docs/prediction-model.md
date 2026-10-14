@@ -1,7 +1,7 @@
 Feature Specification: Automated Visual Intake & Predictive Inventory Engine
 
 1. Overview
-   The Automated Visual Intake & Predictive Inventory Engine enables frictionless, community-driven inventory management for the UTA Maverick Pantry. Instead of relying on manual text entry or staff logging, visiting students capture single full-shelf or haul photos. The system utilizes Gemini 1.5 Flash to perform multi-item spatial bounding, text extraction (OCR), and visual volume estimation.
+   The Automated Visual Intake & Predictive Inventory Engine enables frictionless, community-driven inventory management for the UTA Maverick Pantry. Instead of relying on manual text entry or logging by the pantry, visiting students capture single full-shelf or haul photos. The system utilizes Gemini 1.5 Flash to perform multi-item spatial bounding, text extraction (OCR), and visual volume estimation.
    Over time, consecutive photo uploads form a self-verifying feedback loop that builds a time-series dataset to forecast item availability (e.g., restocking likelihoods and high-demand depletion rates during exam weeks).
 2. Core Operational Workflow
    [Full-Shelf Photo Capture]
@@ -37,5 +37,5 @@ Feature Specification: Automated Visual Intake & Predictive Inventory Engine
    Public Attribution & Anti-Spam Attaches user handle and timestamp directly to item updates; uses session token rate-limiting. Discourages malicious reporting through social accountability without requiring complex upvote/downvote systems.
 4. Strategic Value for Project Defense
    Solves the "Facebook Alternative" Argument: Facebook is a static media log; this feature acts as a relational state machine that converts unstructured photos into queryable database entities and forward-looking predictions.
-   Bypasses Staff Bandwidth Constraints: Operates 100% independently of pantry staff intervention.
+   Bypasses Pantry Bandwidth Constraints: Operates with no day-to-day input from the pantry itself.
    Low Activation Friction: Reduces student logging time from minutes of typing down to a single camera snap.

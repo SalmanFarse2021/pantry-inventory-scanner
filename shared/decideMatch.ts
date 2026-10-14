@@ -65,7 +65,7 @@ export function relate(a: NormalizedName, b: NormalizedName): Relation | null {
 }
 
 // Gemini-first matching: the name read from the label is compared with existing item names.
-// Only "same" with no competing candidate resolves automatically. Anything else needs a worker's eye.
+// Only "same" with no competing candidate resolves automatically. Anything else needs the user's eye.
 export function decideMatch<T extends { name: string }>(name: string, catalog: T[]): Decision<T> {
   const q = normalizeName(name);
   const candidates: Candidate<T>[] = [];

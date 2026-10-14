@@ -1,5 +1,5 @@
 // Identify one intake job: Gemini chain, then name match, then write the result.
-// Shared by /api/identify (a worker's request) and /api/sweep (the daily quota retry).
+// Shared by /api/identify (a user's request) and /api/sweep (the daily quota retry).
 
 import { FinishReason, HarmBlockThreshold, HarmCategory } from "@google/genai";
 import { z } from "zod";
@@ -13,14 +13,15 @@ import { admin, ai } from "./clients.js";
 const quotaDay = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
 
 // Claim the job so a double tap, a retry or the sweep cannot run it twice at once.
-export async function claimJob(jobId: string) {
-  const { data, error } = await admin
+// Pass the caller's id to restrict the claim to their own job; the sweep claims any.
+export async function claimJob(jobId: string, userId?: string) {
+  let query = admin
     .from("intake_jobs")
     .update({ status: "processing" })
     .eq("id", jobId)
-    .in("status", ["queued", "waiting_quota", "red"])
-    .select("photo_path, attempts")
-    .maybeSingle();
+    .in("status", ["queued", "waiting_quota", "red"]);
+  if (userId) query = query.eq("created_by", userId);
+  const { data, error } = await query.select("photo_path, attempts").maybeSingle();
   if (error) throw error;
   return data;
 }
@@ -116,7 +117,7 @@ export async function runJob(jobId: string, claimed: { photo_path: string; attem
 
     if (result.value.kind === "reject") {
       // Nothing is created. The thumbnail bucket is public, so take the photo out of it; the
-      // full-size copy stays in the private bucket for staff to audit.
+      // full-size copy stays in the private bucket for auditing.
       await admin.storage.from("thumbnails").remove([`${jobId}.jpg`]);
       await admin
         .from("intake_jobs")
@@ -125,7 +126,7 @@ export async function runJob(jobId: string, claimed: { photo_path: string; attem
       return "rejected";
     }
     const item = result.value.item;
-    // Keep what Gemini read, so a worker can resolve the job from the review screen.
+    // Keep what Gemini read, so the user can resolve the job from the review screen.
     await admin.from("intake_jobs").update({ identified: item, model_used: result.model, attempts }).eq("id", jobId);
 
     const match = matchJob(item.name, await loadCatalog());
@@ -135,11 +136,11 @@ export async function runJob(jobId: string, claimed: { photo_path: string; attem
       return "green";
     }
     if (match.kind === "yellow") {
-      // No item yet: the worker picks a candidate or creates a new one.
+      // No item yet: the user picks a candidate or creates a new one.
       await admin.from("intake_jobs").update({ status: "yellow", candidates: match.candidates }).eq("id", jobId);
       return "yellow";
     }
-    // New item: create it now (stock is counted) and show it yellow once so a worker eyeballs it.
+    // New item: create it now with the status the user chose, and show it yellow once so the user can check it.
     const { error } = await admin.rpc("resolve_job_new", {
       p_job_id: jobId,
       p_name: item.name,

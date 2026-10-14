@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { IconLogout, IconMenu2, IconUser } from '@tabler/icons-react'
+import { IconCamera, IconListDetails, IconLogout, IconMenu2, IconUser } from '@tabler/icons-react'
 import { supabase } from '../../lib/supabase'
 import { displayNameOf, useSession } from './useSession'
 
@@ -36,6 +36,8 @@ export function Navbar() {
             <IconUser size={18} /> {displayNameOf(session)}
           </button>
           <ul tabIndex={0} className="menu dropdown-content z-10 mt-2 w-44 rounded-box bg-base-100 p-2 shadow">
+            <li><Link to="/capture"><IconCamera size={18} /> Scan an item</Link></li>
+            <li><Link to="/queue"><IconListDetails size={18} /> My scans</Link></li>
             <li>
               <button onClick={() => void supabase.auth.signOut()}>
                 <IconLogout size={18} /> Sign out

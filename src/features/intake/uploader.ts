@@ -8,7 +8,8 @@ export async function uploadCapture(c: PendingCapture): Promise<void> {
   const session = sessionData.session
   if (!session) throw new Error('signed out')
 
-  const photoPath = `${c.batchId}/${c.id}.jpg`
+  // Photos live under the user's id; storage rules only let a user reach their own folder.
+  const photoPath = `${session.user.id}/${c.batchId}/${c.id}.jpg`
   const opts = { contentType: 'image/jpeg', upsert: true }
   const [photo, thumb] = await Promise.all([
     supabase.storage.from('intake-photos').upload(photoPath, c.photo, opts),
@@ -21,7 +22,7 @@ export async function uploadCapture(c: PendingCapture): Promise<void> {
     id: c.id,
     batch_id: c.batchId,
     photo_path: photoPath,
-    quantity: c.quantity,
+    availability: c.availability ?? 'in_stock',
     created_by: session.user.id,
   })
   if (error && error.code !== '23505') throw error

@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { PublicAvailability } from '../../../shared/catalogView'
 import { loadPending, removePending, savePending, type PendingCapture } from './queueDb'
 import { requestIdentify, uploadCapture } from './uploader'
 
@@ -24,7 +25,7 @@ type State = {
   batchId: string
   pending: PendingCapture[]
   last: PendingCapture | null // for the "same as last" shortcut
-  enqueue: (photo: Blob, thumb: Blob, quantity: number) => Promise<void>
+  enqueue: (photo: Blob, thumb: Blob, availability: PublicAvailability) => Promise<void>
   newBatch: () => void
   flush: () => Promise<void>
 }
@@ -36,13 +37,13 @@ export const useCaptureQueue = create<State>((set, get) => ({
   pending: [],
   last: null,
 
-  async enqueue(photo, thumb, quantity) {
+  async enqueue(photo, thumb, availability) {
     const capture: PendingCapture = {
       id: crypto.randomUUID(),
       batchId: get().batchId,
       photo,
       thumb,
-      quantity,
+      availability,
       createdAt: Date.now(),
     }
     await savePending(capture)

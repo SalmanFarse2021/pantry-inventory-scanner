@@ -1,4 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { CatalogScreen } from '../features/student/CatalogScreen'
+import { CatalogScreen } from '../features/catalog/CatalogScreen'
 
 export const Route = createFileRoute('/')({ component: CatalogScreen })

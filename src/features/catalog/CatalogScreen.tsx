@@ -3,9 +3,8 @@ import { filterCatalog, type CatalogRow, type PublicAvailability } from '../../.
 import { isStale, timeAgo } from '../../../shared/freshness'
 import { useSession } from '../auth/useSession'
 import { CATEGORIES, categoryLabel } from '../intake/categories'
-import { AvailabilityBadgeFor } from '../inventory/AvailabilityBadge'
-import { thumbUrl } from '../inventory/useInventory'
-import { useCatalog, useSetStatus } from './useCatalog'
+import { AvailabilityBadgeFor } from './AvailabilityBadge'
+import { thumbUrl, useCatalog, useSetStatus } from './useCatalog'
 
 export function CatalogScreen() {
   const { data: rows = [], isLoading, error } = useCatalog()

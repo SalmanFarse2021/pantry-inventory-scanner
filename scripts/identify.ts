@@ -1,4 +1,4 @@
-// Feasibility check: photo of pantry items -> list of { name, category } for a worker to confirm.
+// Feasibility check: photo of pantry items -> list of { name, category } for the user to confirm.
 //
 // Usage (GEMINI_API_KEY is read from .env):
 //   npm run identify                    # runs on samples/*
@@ -48,12 +48,12 @@ const ItemSchema = z.object({
   subcategory: z.string().describe("Free-text, e.g. \"fruit\", \"crackers\", \"pasta\""),
   position: z.string().describe("Where it sits in the photo, e.g. \"far left\", \"back right\""),
   confidence: z.enum(["high", "medium", "low"]),
-  note: z.string().nullable().describe("Only if something needs the worker's attention"),
+  note: z.string().nullable().describe("Only if something needs the user's attention"),
 });
 
 const ResultSchema = z.object({ items: z.array(ItemSchema) });
 
-const SYSTEM = `You help a school pantry worker log donated items. They photograph a group of products; \
+const SYSTEM = `You help a school pantry volunteer log donated items. They photograph a group of products; \
 you return one entry per distinct product so they can confirm or correct each one.
 
 - List each distinct product once, even if several identical ones are visible. Do not count.

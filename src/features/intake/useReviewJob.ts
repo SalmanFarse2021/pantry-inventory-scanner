@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
+import type { PublicAvailability } from '../../../shared/catalogView'
 import type { JobCandidate } from '../../../shared/matchJob'
 import type { IdentifiedItem } from '../../../shared/identifyItem'
 import type { JobStatus } from './useIntakeJobs'
@@ -7,7 +8,7 @@ import type { JobStatus } from './useIntakeJobs'
 export type ReviewJob = {
   id: string
   status: JobStatus
-  quantity: number
+  availability: PublicAvailability
   photo_path: string
   item_id: string | null
   candidates: JobCandidate[] | null
@@ -28,7 +29,7 @@ export function useReviewJob(jobId: string) {
     queryFn: async (): Promise<ReviewJob> => {
       const { data, error } = await supabase
         .from('intake_jobs')
-        .select('id, status, quantity, photo_path, item_id, candidates, identified, error, items(id, name, brand, categories)')
+        .select('id, status, availability, photo_path, item_id, candidates, identified, error, items(id, name, brand, categories)')
         .eq('id', jobId)
         .single()
       if (error) throw error
@@ -62,7 +63,7 @@ export function useReviewJob(jobId: string) {
     void queryClient.invalidateQueries({ queryKey: ['catalog'] })
   }
 
-  // This photo is an item we already have.
+  // This photo is an item we already have: its status is updated to what the user chose.
   const useExisting = useMutation({
     mutationFn: async (itemId: string) => {
       const { error } = await supabase.rpc('resolve_job_existing', { p_job_id: jobId, p_item_id: itemId })
@@ -86,17 +87,15 @@ export function useReviewJob(jobId: string) {
     onSuccess: done,
   })
 
-  // The item was already created from this photo; save the worker's edits and accept it.
+  // The item was created from this photo; save the user's edits and accept it.
   const confirmItem = useMutation({
     mutationFn: async (f: ItemFields) => {
-      const itemId = job.data?.item_id
-      if (!itemId) throw new Error('no item to confirm')
-      const { error: updateErr } = await supabase
-        .from('items')
-        .update({ name: f.name, brand: f.brand || null, categories: f.categories })
-        .eq('id', itemId)
-      if (updateErr) throw updateErr
-      const { error } = await supabase.rpc('confirm_job', { p_job_id: jobId })
+      const { error } = await supabase.rpc('confirm_job', {
+        p_job_id: jobId,
+        p_name: f.name,
+        p_brand: f.brand || null,
+        p_categories: f.categories,
+      })
       if (error) throw error
     },
     onSuccess: done,

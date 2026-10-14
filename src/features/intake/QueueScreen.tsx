@@ -7,6 +7,7 @@ import { StatusDot, statusLabel } from './StatusDot'
 import { useCaptureQueue } from './useCaptureQueue'
 import { useIntakeJobs, type IntakeJob } from './useIntakeJobs'
 import { requestIdentify } from './uploader'
+import { availabilityText } from './availability'
 
 const thumbUrl = (jobId: string) => supabase.storage.from('thumbnails').getPublicUrl(`${jobId}.jpg`).data.publicUrl
 
@@ -28,7 +29,7 @@ export function QueueScreen() {
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Queue</h1>
         <div className="flex gap-2">
-          <Link to="/staff/capture" className="btn btn-sm btn-primary">Add items</Link>
+          <Link to="/capture" className="btn btn-sm btn-primary">Scan an item</Link>
           <button className="btn btn-sm btn-ghost" onClick={newBatch}>New batch</button>
         </div>
       </header>
@@ -43,7 +44,7 @@ export function QueueScreen() {
             <img src={pendingUrls[c.id]} alt="" className="size-14 rounded-field object-cover" />
             <div className="min-w-0 flex-1">
               <div className="font-medium">Uploading…</div>
-              <div className="text-sm opacity-70">Qty {c.quantity}. Saved on this phone until it uploads.</div>
+              <div className="text-sm opacity-70">{availabilityText(c.availability ?? 'in_stock')}. Saved on this phone until it uploads.</div>
             </div>
             <span className="loading loading-spinner loading-sm" />
           </li>
@@ -54,7 +55,7 @@ export function QueueScreen() {
             <div className="min-w-0 flex-1">
               <div className="truncate font-medium">{job.items?.name ?? job.identified?.name ?? statusLabel(job.status)}</div>
               <div className="truncate text-sm opacity-70">
-                Qty {job.quantity}
+                {availabilityText(job.availability)}
                 {job.items && ` · ${job.items.categories.join(', ').replaceAll('_', ' ')}`}
                 {job.status === 'red' && job.error && ` · ${job.error}`}
                 {job.status === 'rejected' && job.reject_reason && ` · ${REJECT_LABELS[job.reject_reason]}`}
@@ -63,9 +64,9 @@ export function QueueScreen() {
             {(job.status === 'queued' || job.status === 'red' || job.status === 'waiting_quota') && (
               <button className="btn btn-xs" onClick={() => retry(job)}>Retry</button>
             )}
-            {job.status !== 'processing' && (
-              <Link to="/staff/review/$jobId" params={{ jobId: job.id }} className="btn btn-xs btn-outline">
-                {job.status === 'yellow' ? 'Review' : job.status === 'green' ? 'Edit' : 'Enter'}
+            {(job.status === 'yellow' || job.status === 'queued' || job.status === 'red' || job.status === 'waiting_quota') && (
+              <Link to="/review/$jobId" params={{ jobId: job.id }} className="btn btn-xs btn-outline">
+                {job.status === 'yellow' ? 'Review' : 'Enter'}
               </Link>
             )}
             <StatusDot status={job.status} />

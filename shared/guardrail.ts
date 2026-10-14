@@ -46,7 +46,7 @@ export const ModelOutputSchema = z.object({
     .max(MAX_CATEGORIES)
     .describe(`1 to ${MAX_CATEGORIES} categories from the fixed list, primary first. Empty array when rejecting.`),
   confidence: z.enum(["high", "medium", "low"]),
-  note: z.string().nullable().describe("Only if something needs the worker's attention"),
+  note: z.string().nullable().describe("Only if something needs the user's attention"),
 });
 export type ModelOutput = z.infer<typeof ModelOutputSchema>;
 

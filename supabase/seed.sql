@@ -1,3 +1,1 @@
--- Add the first manager after creating their auth user (Dashboard > Authentication > Add user):
--- insert into public.staff (user_id, email, role)
---   select id, email, 'manager' from auth.users where email = 'you@example.com';
+-- No seed data. Items are added by scanning photos; any registered UTA user can do it.

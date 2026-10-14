@@ -6,13 +6,14 @@ import { CategoriesSchema } from '../../../shared/categories'
 import { CategoryPicker } from './CategoryPicker'
 import { StatusDot, statusLabel } from './StatusDot'
 import { RELATION_LABEL } from './matchLabels'
+import { availabilityText } from './availability'
 import type { Category } from './categories'
 import { useReviewJob, type ItemFields } from './useReviewJob'
 
 const thumbUrl = (path: string | null) => (path ? supabase.storage.from('thumbnails').getPublicUrl(path).data.publicUrl : undefined)
 
-// Resolve one job: pick an existing item, create a new one, or check an item that was created
-// automatically. Also the manual-entry screen for red and waiting jobs.
+// Resolve one job: pick an existing item (its stock level is updated), create a new one, or check
+// an item that was created automatically. Also the manual-entry screen for red and waiting jobs.
 export function ReviewScreen({ jobId }: { jobId: string }) {
   const navigate = useNavigate()
   const { job, catalog, photoUrl, useExisting, createNew, confirmItem } = useReviewJob(jobId)
@@ -50,10 +51,23 @@ export function ReviewScreen({ jobId }: { jobId: string }) {
   const busy = useExisting.isPending || createNew.isPending || confirmItem.isPending
   const failure = useExisting.error ?? createNew.error ?? confirmItem.error
 
-  const back = () => void navigate({ to: '/staff/queue' })
+  const back = () => void navigate({ to: '/queue' })
 
   if (job.isLoading) return <span className="loading loading-spinner mx-auto mt-10 block" />
   if (job.error || !j) return <p className="p-4 text-error">Could not load this job.</p>
+
+  // Already saved: nothing left to decide.
+  if (j.status === 'green') {
+    return (
+      <main className="mx-auto flex max-w-md flex-col gap-4 p-4">
+        <h1 className="flex items-center gap-2 text-xl font-semibold">
+          <StatusDot status={j.status} /> {j.items?.name ?? 'Saved'}
+        </h1>
+        <p className="text-sm opacity-70">Marked {availabilityText(j.availability)}.</p>
+        <Link to="/queue" className="btn btn-primary">Back to queue</Link>
+      </main>
+    )
+  }
 
   const newIsPrimary = !matches.length || defaultsToNewItem(matches)
 
@@ -63,12 +77,12 @@ export function ReviewScreen({ jobId }: { jobId: string }) {
         <h1 className="flex items-center gap-2 text-xl font-semibold">
           <StatusDot status={j.status} /> {hasItem ? 'Check this item' : 'Which item is this?'}
         </h1>
-        <Link to="/staff/queue" className="btn btn-sm btn-ghost">Back</Link>
+        <Link to="/queue" className="btn btn-sm btn-ghost">Back</Link>
       </header>
 
       {photoUrl.data && <img src={photoUrl.data} alt="Captured item" className="max-h-72 w-full rounded-box bg-black object-contain" />}
       <p className="text-sm opacity-70">
-        {statusLabel(j.status)} · Qty {j.quantity}
+        {statusLabel(j.status)} · Marked {availabilityText(j.availability)}
         {j.error && ` · ${j.error}`}
         {j.identified?.note && ` · Note: ${j.identified.note}`}
         {j.identified?.confidence === 'low' && ' · Low confidence read'}
@@ -86,7 +100,7 @@ export function ReviewScreen({ jobId }: { jobId: string }) {
 
       {!hasItem && matches.length > 0 && (
         <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-medium">Already in the pantry?</h2>
+          <h2 className="text-sm font-medium">Already in the pantry? Update it instead of adding a duplicate.</h2>
           {matches.map((c) => (
             <div key={c.item_id} className="flex items-center gap-3 rounded-box bg-base-200 p-2">
               <img src={thumbUrl(thumbs.get(c.item_id) ?? null)} alt="" className="size-14 rounded-field bg-base-300 object-cover" />
@@ -95,7 +109,7 @@ export function ReviewScreen({ jobId }: { jobId: string }) {
                 <div className="text-xs opacity-70">{RELATION_LABEL[c.relation]}</div>
               </div>
               <button className="btn btn-sm btn-outline" disabled={busy} onClick={() => useExisting.mutate(c.item_id, { onSuccess: back })}>
-                Same item
+                Update this item
               </button>
             </div>
           ))}
@@ -106,7 +120,7 @@ export function ReviewScreen({ jobId }: { jobId: string }) {
 
       {hasItem ? (
         <button className="btn btn-primary" disabled={busy || !valid} onClick={() => confirmItem.mutate(fields, { onSuccess: back })}>
-          {j.status === 'green' ? 'Save changes' : 'Confirm'}
+          Confirm
         </button>
       ) : (
         <button

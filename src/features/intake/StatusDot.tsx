@@ -3,7 +3,7 @@ import type { JobStatus } from './useIntakeJobs'
 const DOT: Record<JobStatus, { cls: string; label: string }> = {
   queued: { cls: 'bg-base-300', label: 'Queued' },
   processing: { cls: 'bg-info animate-pulse', label: 'Identifying' },
-  green: { cls: 'bg-success', label: 'Added' },
+  green: { cls: 'bg-success', label: 'Saved' },
   yellow: { cls: 'bg-warning', label: 'Needs review' },
   red: { cls: 'bg-error', label: 'Failed, enter manually' },
   rejected: { cls: 'bg-error', label: 'Not accepted' },

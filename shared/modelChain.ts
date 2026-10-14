@@ -4,7 +4,7 @@
 //   bad answer (invalid JSON, schema mismatch, 5xx): one retry on the same model, then next tier
 //   429 (or our own counter says the model is out):  next tier immediately, no retry
 //   every tier out of quota:                         "waiting_quota" (retry after the daily reset)
-//   anything else exhausted:                         "failed" (worker types it in)
+//   anything else exhausted:                         "failed" (the user types it in)
 
 export type Tier = { model: string; dailyLimit: number };
 

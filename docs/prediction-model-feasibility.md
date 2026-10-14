@@ -23,10 +23,10 @@ The intake half (photo → detected items → confirm → catalog update) is fea
    - T1→T2 comparison assumes similar framing of the same shelf region; students photograph arbitrary things, so a delta can be a framing difference rather than consumption.
    - User overrides are corrections, not ground truth, and blind "confirm" taps inflate apparent accuracy. Call the score "agreement rate", and spot-check a sample by hand.
 6. **Prediction is a data-volume problem.** Probabilities like "80% Monday restock" need weeks to months of dense history per item. Start with rule-based labels ("Low for N days", "Likely gone soon") from tier + category rules. Exam-week spikes can be a hand-set multiplier, not a learned feature.
-7. **Restocks aren't directly observable.** Donations and staff deliveries are invisible to the system. If the pantry has a fixed delivery schedule, ask staff for it once rather than learning it.
+7. **Restocks aren't directly observable.** Donations and deliveries are invisible to the system. If the pantry has a fixed delivery schedule, ask the pantry for it once rather than learning it.
 8. **Abuse and trust.** Handle attribution and rate limiting deter casual spam, not repeated false "Empty" reports. Add a guard (e.g. flag large simultaneous swings for review) and show photo age per item. Decide whether images are stored, and whether faces are blurred/stripped.
 9. **Cost and latency.** Need a rate limit and upload size cap to protect the API bill. "Under 3 seconds" likely won't include model latency; use a loading state and keep the call server-side.
-10. **Defense framing.** "100% independent of staff" conflicts with needing someone to maintain the SKU dictionary and fix a wrong catalog. Say "minimal staff involvement".
+10. **Defense framing.** "100% independent of the pantry's own workload" conflicts with needing someone to maintain the SKU dictionary and fix a wrong catalog. Say "minimal involvement from the pantry".
 
 ## Recommended build order
 
@@ -38,6 +38,6 @@ The intake half (photo → detected items → confirm → catalog update) is fea
 ## Open items for when we return
 
 - Check how much of step 1 the existing identify/matching code already covers.
-- Rewrite `prediction-model.md` to the scoped version above (model name, no bounding boxes, absence ≠ out of stock, rule-based labels, staffing claim).
+- Rewrite `prediction-model.md` to the scoped version above (model name, no bounding boxes, absence ≠ out of stock, rule-based labels, workload claim).
 - Decide on image storage/retention and face handling.
 - Define the anomaly guard for mass "Empty" reports.
