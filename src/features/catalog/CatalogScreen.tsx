@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from '@tanstack/react-router'
 import { filterCatalog, type CatalogRow, type PublicAvailability } from '../../../shared/catalogView'
 import { isStale, timeAgo } from '../../../shared/freshness'
 import { useSession } from '../auth/useSession'
@@ -11,7 +12,7 @@ export function CatalogScreen() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState<string | null>(null)
   const [hideOut, setHideOut] = useState(false)
-  const [editing, setEditing] = useState(false)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const session = useSession()
   const setStatus = useSetStatus()
 
@@ -25,9 +26,7 @@ export function CatalogScreen() {
           <p className="text-sm opacity-70">See what is available before you visit.</p>
         </div>
         {session && (
-          <button className={`btn btn-sm ${editing ? 'btn-neutral' : 'btn-primary'}`} onClick={() => setEditing((v) => !v)}>
-            {editing ? 'Done' : 'Update stock'}
-          </button>
+          <Link to="/capture" className="btn btn-sm btn-primary shrink-0">Update stock</Link>
         )}
       </header>
 
@@ -59,7 +58,8 @@ export function CatalogScreen() {
           <ItemCard
             key={r.id}
             item={r}
-            editing={editing && !!session}
+            selected={!!session && selectedId === r.id}
+            onSelect={session ? () => setSelectedId((id) => (id === r.id ? null : r.id)) : undefined}
             busy={setStatus.isPending && setStatus.variables?.itemId === r.id}
             onSet={(status) => setStatus.mutate({ itemId: r.id, status })}
           />
@@ -77,16 +77,31 @@ const STATUSES: { value: PublicAvailability; label: string; cls: string }[] = [
 
 type ItemCardProps = {
   item: CatalogRow
-  editing: boolean
+  selected: boolean
+  onSelect?: () => void // set only for signed-in users; tapping the card opens its stock levels
   busy: boolean
   onSet: (status: PublicAvailability) => void
 }
 
-function ItemCard({ item, editing, busy, onSet }: ItemCardProps) {
+function ItemCard({ item, selected, onSelect, busy, onSet }: ItemCardProps) {
   const out = item.availability === 'out'
   const stale = isStale(item.updated_at)
   return (
-    <li className={`card card-sm overflow-hidden bg-base-200 ${out && !editing ? 'opacity-60' : ''}`}>
+    <li
+      className={`card card-sm overflow-hidden bg-base-200 ${out && !selected ? 'opacity-60' : ''} ${selected ? 'ring-2 ring-primary' : ''} ${onSelect ? 'cursor-pointer' : ''}`}
+      {...(onSelect && {
+        role: 'button',
+        tabIndex: 0,
+        'aria-expanded': selected,
+        onClick: onSelect,
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault()
+            onSelect()
+          }
+        },
+      })}
+    >
       <figure className="aspect-square bg-base-300">
         {item.thumbnail_path && <img src={thumbUrl(item.thumbnail_path)} alt="" loading="lazy" className="size-full object-cover" />}
       </figure>
@@ -99,14 +114,17 @@ function ItemCard({ item, editing, busy, onSet }: ItemCardProps) {
             : 'Not yet verified'}
           {stale && item.updated_at && ' · may be out of date'}
         </p>
-        {editing && (
+        {selected && (
           <div className="join mt-1 w-full">
             {STATUSES.map((s) => (
               <button
                 key={s.value}
                 className={`btn btn-xs join-item flex-1 ${item.availability === s.value ? s.cls : 'btn-soft'}`}
                 disabled={busy}
-                onClick={() => onSet(s.value)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onSet(s.value)
+                }}
               >
                 {s.label}
               </button>
