@@ -1,3 +1,4 @@
+import { uuid } from '../../lib/uuid'
 import { create } from 'zustand'
 import type { PublicAvailability } from '../../../shared/catalogView'
 import { loadPending, removePending, savePending, type PendingCapture } from './queueDb'
@@ -8,11 +9,11 @@ const readBatchId = () => {
   try {
     return localStorage.getItem(BATCH_KEY) ?? newBatchId()
   } catch {
-    return crypto.randomUUID()
+    return uuid()
   }
 }
 function newBatchId() {
-  const id = crypto.randomUUID()
+  const id = uuid()
   try {
     localStorage.setItem(BATCH_KEY, id)
   } catch {
@@ -21,12 +22,25 @@ function newBatchId() {
   return id
 }
 
+const DISMISSED_KEY = 'pantry-dismissed-jobs'
+const readDismissed = (): string[] => {
+  try {
+    return JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? '[]')
+  } catch {
+    return []
+  }
+}
+
 type State = {
   batchId: string
+  dismissed: string[] // finished jobs the user cleared from the queue view
   pending: PendingCapture[]
   last: PendingCapture | null // for the "same as last" shortcut
+  errors: Record<string, string> // why a capture is still waiting, by capture id
   enqueue: (photo: Blob, thumb: Blob, availability: PublicAvailability) => Promise<void>
   newBatch: () => void
+  dismiss: (ids: string[]) => void
+  discard: (id: string) => Promise<void>
   flush: () => Promise<void>
 }
 
@@ -36,10 +50,12 @@ export const useCaptureQueue = create<State>((set, get) => ({
   batchId: readBatchId(),
   pending: [],
   last: null,
+  errors: {},
+  dismissed: readDismissed(),
 
   async enqueue(photo, thumb, availability) {
     const capture: PendingCapture = {
-      id: crypto.randomUUID(),
+      id: uuid(),
       batchId: get().batchId,
       photo,
       thumb,
@@ -55,6 +71,26 @@ export const useCaptureQueue = create<State>((set, get) => ({
     set({ batchId: newBatchId() })
   },
 
+  // Hide finished jobs from the queue view only; the server records are untouched.
+  dismiss(ids) {
+    const dismissed = [...new Set([...get().dismissed, ...ids])]
+    try {
+      localStorage.setItem(DISMISSED_KEY, JSON.stringify(dismissed))
+    } catch {
+      // private mode: they come back on reload
+    }
+    set({ dismissed })
+  },
+
+  // Drop a capture that cannot upload. It is removed from the phone, so this cannot be undone.
+  async discard(id) {
+    await removePending(id)
+    set((s) => {
+      const { [id]: _gone, ...errors } = s.errors
+      return { pending: s.pending.filter((p) => p.id !== id), errors }
+    })
+  },
+
   async flush() {
     if (flushing) return
     flushing = true
@@ -62,11 +98,17 @@ export const useCaptureQueue = create<State>((set, get) => ({
       for (const capture of [...get().pending]) {
         try {
           await uploadCapture(capture)
-        } catch {
-          break // offline or signed out; the timer / online event retries
+        } catch (err) {
+          // Keep the reason so the queue can show it; the timer / online event retries.
+          const message = err instanceof Error ? err.message : String(err)
+          set((s) => ({ errors: { ...s.errors, [capture.id]: message } }))
+          continue // one stuck photo must not block the ones behind it
         }
         await removePending(capture.id)
-        set((s) => ({ pending: s.pending.filter((p) => p.id !== capture.id) }))
+        set((s) => {
+          const { [capture.id]: _done, ...errors } = s.errors
+          return { pending: s.pending.filter((p) => p.id !== capture.id), errors }
+        })
         void requestIdentify(capture.id).catch(() => {})
       }
     } finally {

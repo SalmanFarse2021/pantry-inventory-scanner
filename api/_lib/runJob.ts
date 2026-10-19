@@ -1,16 +1,12 @@
 // Identify one intake job: Gemini chain, then name match, then write the result.
 // Shared by /api/identify (a user's request) and /api/sweep (the daily quota retry).
 
-import { FinishReason, HarmBlockThreshold, HarmCategory } from "@google/genai";
-import { z } from "zod";
 import { decide, ModelOutputSchema, type Decision } from "../../shared/guardrail.js";
-import { IDENTIFY_SYSTEM, parseModelJson } from "../../shared/identifyItem.js";
-import { matchJob, type CatalogItem } from "../../shared/matchJob.js";
-import { QuotaError, TIERS, runChain } from "../../shared/modelChain.js";
-import { admin, ai } from "./clients.js";
-
-// Gemini's free-tier quotas reset at midnight Pacific.
-const quotaDay = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+import { IDENTIFY_SYSTEM } from "../../shared/identifyItem.js";
+import { matchJob } from "../../shared/matchJob.js";
+import { TIERS, runChain } from "../../shared/modelChain.js";
+import { admin } from "./clients.js";
+import { downloadPhotoBase64, generateJson, loadCatalog, quotaDeps } from "./gemini.js";
 
 // Claim the job so a double tap, a retry or the sweep cannot run it twice at once.
 // Pass the caller's id to restrict the claim to their own job; the sweep claims any.
@@ -26,84 +22,24 @@ export async function claimJob(jobId: string, userId?: string) {
   return data;
 }
 
-async function loadCatalog(): Promise<CatalogItem[]> {
-  const all: CatalogItem[] = [];
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await admin.from("items").select("id, name").order("created_at").range(from, from + 999);
-    if (error) throw error;
-    all.push(...data);
-    if (data.length < 1000) return all;
-  }
-}
-
 export type JobOutcome = "green" | "yellow" | "red" | "waiting_quota" | "rejected";
-
-// Strictest filter on every category. Applied to Gemini models only; not verified for gemma.
-const SAFETY_SETTINGS = [
-  HarmCategory.HARM_CATEGORY_HARASSMENT,
-  HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-  HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-  HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-].map((category) => ({ category, threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE }));
-
-const BLOCKED_FINISH: (FinishReason | undefined)[] = [
-  FinishReason.SAFETY,
-  FinishReason.PROHIBITED_CONTENT,
-  FinishReason.BLOCKLIST,
-  FinishReason.IMAGE_SAFETY,
-  FinishReason.IMAGE_PROHIBITED_CONTENT,
-];
 
 export async function runJob(jobId: string, claimed: { photo_path: string; attempts: number }): Promise<JobOutcome> {
   try {
-    const { data: blob, error: dlErr } = await admin.storage.from("intake-photos").download(claimed.photo_path);
-    if (dlErr || !blob) throw new Error(`photo download failed: ${dlErr?.message}`);
-    const data = Buffer.from(await blob.arrayBuffer()).toString("base64");
-    const day = quotaDay();
+    const image = await downloadPhotoBase64(claimed.photo_path);
 
     const result = await runChain<Decision>(TIERS, {
       call: async (model) => {
-        try {
-          const response = await ai.models.generateContent({
-            model,
-            contents: [
-              {
-                role: "user",
-                parts: [
-                  { inlineData: { mimeType: "image/jpeg", data } },
-                  { text: "Identify and categorize this product." },
-                ],
-              },
-            ],
-            config: {
-              systemInstruction: IDENTIFY_SYSTEM,
-              responseMimeType: "application/json",
-              responseJsonSchema: z.toJSONSchema(ModelOutputSchema),
-              ...(model.startsWith("gemini") && { safetySettings: SAFETY_SETTINGS }),
-            },
-          });
-          // Gemini's own filter fired on the photo or the answer: that is a rejection, not a retry.
-          if (response.promptFeedback?.blockReason || BLOCKED_FINISH.includes(response.candidates?.[0]?.finishReason)) {
-            return { kind: "reject", reason: "inappropriate" };
-          }
-          return decide(ModelOutputSchema.parse(parseModelJson(response.text ?? "")));
-        } catch (err) {
-          if (err instanceof Error && /"code":\s*429/.test(err.message)) throw new QuotaError(err.message);
-          throw err;
-        }
-      },
-      reserve: async (tier) => {
-        const { data: ok, error } = await admin.rpc("reserve_model_usage", {
-          p_model: tier.model,
-          p_day: day,
-          p_limit: tier.dailyLimit,
+        const out = await generateJson(model, {
+          image,
+          prompt: "Identify and categorize this product.",
+          system: IDENTIFY_SYSTEM,
+          schema: ModelOutputSchema,
         });
-        if (error) throw error;
-        return ok === true;
+        if (out.blocked) return { kind: "reject", reason: "inappropriate" };
+        return decide(ModelOutputSchema.parse(out.json));
       },
-      markExhausted: async (tier) => {
-        await admin.rpc("exhaust_model_usage", { p_model: tier.model, p_day: day, p_limit: tier.dailyLimit });
-      },
+      ...quotaDeps(),
     });
 
     const attempts = (claimed.attempts ?? 0) + result.attempts;

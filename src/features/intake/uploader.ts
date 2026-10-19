@@ -37,5 +37,12 @@ export async function requestIdentify(jobId: string): Promise<void> {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session?.access_token}` },
     body: JSON.stringify({ jobId }),
   })
-  if (!res.ok && res.status !== 409) throw new Error(`identify failed (${res.status})`)
+  // A dev server without the API answers with the app's HTML; that is not a success.
+  if (!(res.headers.get('content-type') ?? '').includes('application/json')) {
+    throw new Error(`identify API not reachable (got ${res.status} ${res.headers.get('content-type') ?? 'no content type'}). Is the server running with "vercel dev"?`)
+  }
+  if (!res.ok && res.status !== 409) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null
+    throw new Error(`identify failed (${res.status})${body?.error ? `: ${body.error}` : ''}`)
+  }
 }

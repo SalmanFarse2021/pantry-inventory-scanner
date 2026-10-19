@@ -13,7 +13,7 @@ Status as of 2026-10-15. Builds on `docs/feasibility-findings.md` (what we teste
 | Surfaces | One app: the public catalog at `/`, and the pages for signed-in users (`/capture`, `/queue`, `/review/:jobId`). One backend (Supabase). |
 | Accounts | Anyone with a `@uta.edu` or `@mavs.uta.edu` address can register with a password. Everyone who is signed in has the same abilities. |
 | Availability | Three statuses per item: in stock, low stock, out of stock. No quantities anywhere. The catalog shows who updated an item and when, and warns after a week. |
-| Updating and adding are one action | A user photographs an item and picks a status. If the item is already in the pantry, its status is updated; if not, it is added. This holds even when the user thought the item was new. |
+| Adding vs updating stock | **Add item** (`/capture`): a close-up of one product. New product, new card; a product already in the catalog is marked in stock. **Update stock** (`/shelf`): a photo of a whole shelf, read in the background into a list the student verifies (boxes on the photo; matched, possible matches, not recognised) before anything changes. A photo only ever sets **in stock**. **Low** and **Out** need no photo: tap the item in the catalog and mark it. |
 | No deletes | Nobody deletes items. Marking an item "out of stock" is how it comes off the shelf. |
 | Security | Enforced in the database (row-level security), never by hiding UI. |
 | Demo | Live, two presenters, partly pre-seeded data. |
@@ -66,6 +66,18 @@ Phone (PWA)                      Vercel                      Supabase
 
 `/api/identify` checks the caller's token and UTA email, and only runs the caller's own jobs.
 
+### 3.3 Presence gate (`20261015020000_pantry_gate.sql`)
+
+Nobody at the pantry operates this app, so the app itself keeps people from updating it when they are not there. No location services and no staff step:
+
+- **Hours** come from the `pantry_hours` table (Tue and Wed 9-3, Thu 11-5, closed otherwise, in `America/Chicago`). They are checked first.
+- **Check-in** is scanning the QR code posted at the pantry (`/checkin?code=...`). It records one row per student per calendar month, matching the pantry's one visit a month. A scan while the pantry is closed, or with under 15 minutes left, is refused and does not use up the month. Scanning again inside the 30 minutes (dead phone, another phone) returns the same check-in; after that it says the month is used.
+- **What is gated:** creating an intake job (a photo upload) and `set_item_status`. Both need the pantry open and a check-in less than 30 minutes old, so a check-in never outlives closing time. Jobs are gated when created; the API finishing them later is not.
+- **Testing:** `pantry_settings.gates_enabled` starts `false`, so development and testing stay open. Set it to `true` on the production project. Accounts listed in `pantry_gate_exempt` skip the gate for testing while it is on. There is no staff or admin account; resetting a visit or rotating the QR code is a SQL statement.
+- Full design, operating queries and known gaps: `docs/presence-gate.md`.
+- **Known limit:** a photo of the QR code works for whoever scans it during open hours, but it uses up that person's own visit for the month. We accept that; this is a crowdsourced app.
+- The hours and durations also live in `shared/pantryGate.ts` for the UI messages. Keep the two in sync.
+
 ## 4. Matching logic (the core of the product)
 
 Gemini-first. The photo is the source of truth shown to everyone; the name Gemini reads from the label decides which item it is. Tested in findings 3.4e (0 wrong merges in 23 later scans, 5 sent to review).
@@ -93,10 +105,12 @@ Never auto-resolve on a partial match. The cost of a wrong yellow is a tap; the 
 ## 5. Status
 
 - **Foundation, intake and matching: built.** Capture with a stock-level picker (in stock / low / out), IndexedDB upload queue, `/api/identify` with the model chain and quota counters, name matching, review screen, and the daily sweep.
-- **Public catalog: built.** Search, category filter, hide-out-of-stock, who updated an item and when, and a stale warning after a week. Signed-in users can change an item's status directly from the catalog.
+- **Public catalog: built.** Search, category filter, hide-out-of-stock, who updated an item and when, and a stale warning after a week. Tapping an item opens a detail view where a signed-in user can mark it low or out of stock. There is no bulk edit mode.
 - **Accounts: built.** Registration limited to UTA email addresses, enforced in the database.
 - **Guardrail: built.** Unsafe or off-topic photos are rejected with a reason and never create an item.
 - **Open-access change: this migration** (`20261015000000_remove_staff.sql`). Removes the staff allowlist and the stock ledger, replaces quantities with statuses on intake, and opens writes to every signed-in UTA user through database functions. Run `npm run rls-test` and `npm run intake-e2e` against a dev project after applying it.
+
+- **Presence gate: written, not yet applied or tested.** Hours plus a monthly QR check-in guard uploads and status updates (section 3.3). Apply it to a dev project, test with a non-admin student account, then set `gates_enabled` to `true` in production.
 
 ### Next
 
@@ -114,7 +128,7 @@ Never auto-resolve on a partial match. The cost of a wrong yellow is a tap; the 
 api/                 Vercel functions (identify, retry sweep)
 shared/              Pure logic used by api and app: categories, schemas,
                      normalizeName, decideMatch, guardrail, catalog view, types
-src/                 App: routes (/, /login, /capture, /queue, /review/:jobId), components, hooks, stores
+src/                 App: routes (/, /login, /checkin, /capture, /queue, /review/:jobId), components, hooks, stores
 supabase/migrations/ Schema, RLS, views, functions
 scripts/             Experiments and checks (identify, match-test, rls-test, intake-e2e)
 docs/                Findings, this plan, experiment results
@@ -134,3 +148,5 @@ Put the matching decisions (`normalizeName`, `decideMatch`) in `shared/` as pure
 | No UTA approval | Demo is built to be showable in person; nothing here depends on their systems |
 | Statuses drift from reality | Freshness stamp on every item; a regular visit to re-check shelves |
 | Single maintainer | Keep stack small, document setup, own accounts under a shared team email |
+
+- **Shelf scan: written, not yet applied or tested** (`20261016000000_shelf_scans.sql`, `api/shelf.ts`, `shared/shelfScan.ts`, `src/features/shelf/`). `confirm_shelf_scan` goes through `set_item_status`, so the two-student verification, cooldown and presence gate apply per item. Apply the migration, then try a real shelf photo; the prompt and box handling are untested against Gemini. Shelf uploads are not saved to the phone first (unlike single-item captures), so a dropped connection loses that photo.

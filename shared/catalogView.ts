@@ -10,6 +10,8 @@ export type CatalogRow = {
   availability: PublicAvailability;
   updated_at: string | null;
   updated_by_name: string | null;
+  // Reported by a student and not yet confirmed by a second one.
+  pending: boolean;
 };
 
 export type CatalogFilter = {

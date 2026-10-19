@@ -3,8 +3,7 @@
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
-import { isUtaEmail } from "../shared/email.js";
-import { admin } from "./_lib/clients.js";
+import { utaUser } from "./_lib/auth.js";
 import { claimJob, runJob } from "./_lib/runJob.js";
 
 const BodySchema = z.object({ jobId: z.uuid() });
@@ -18,12 +17,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!parsed.success) return res.status(400).json({ error: "jobId required" });
   const { jobId } = parsed.data;
 
-  // Only signed-in UTA users may spend Gemini quota, and only on their own jobs.
-  const token = req.headers.authorization?.replace(/^Bearer /i, "");
-  const { data: userData } = token ? await admin.auth.getUser(token) : { data: { user: null } };
-  const user = userData.user;
-  if (!user) return res.status(401).json({ error: "sign in required" });
-  if (!isUtaEmail(user.email ?? "")) return res.status(403).json({ error: "UTA email required" });
+  const user = await utaUser(req);
+  if ("error" in user) return res.status(user.status).json({ error: user.error });
 
   try {
     const claimed = await claimJob(jobId, user.id);

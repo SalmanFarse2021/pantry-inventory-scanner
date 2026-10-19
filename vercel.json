@@ -1,5 +1,16 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [{ "source": "/((?!api/|assets/).*)", "destination": "/index.html" }],
-  "crons": [{ "path": "/api/sweep", "schedule": "5 8 * * *" }]
+  "devCommand": "vite --port $PORT",
+  "rewrites": [
+    {
+      "source": "/((?!api/|assets/|src/|shared/|@|node_modules/|__vite)[^.]*)",
+      "destination": "/index.html"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/sweep",
+      "schedule": "5 8 * * *"
+    }
+  ]
 }

@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useSearch } from '@tanstack/react-router'
 import { supabase } from '../../lib/supabase'
 import { UTA_EMAIL_MESSAGE, isUtaEmail } from '../../../shared/email'
 
-type Mode = 'signin' | 'register'
+type Mode = 'signin' | 'register' | 'forgot'
 
 export function AuthScreen() {
   const navigate = useNavigate()
+  const { redirect } = useSearch({ from: '/login' })
   const [mode, setMode] = useState<Mode>('signin')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -15,6 +16,12 @@ export function AuthScreen() {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+
+  function switchMode(next: Mode) {
+    setMode(next)
+    setError(null)
+    setNotice(null)
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -30,10 +37,16 @@ export function AuthScreen() {
     const last = lastName.trim()
     setBusy(true)
     const trimmed = email.trim()
-    if (mode === 'signin') {
+    if (mode === 'forgot') {
+      const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+      if (error) setError(error.message)
+      else setNotice('If an account exists for that email, a reset link is on its way.')
+    } else if (mode === 'signin') {
       const { error } = await supabase.auth.signInWithPassword({ email: trimmed, password })
       if (error) setError(error.message)
-      else await navigate({ to: '/' })
+      else await navigate({ href: redirect ?? '/' })
     } else {
       const { data, error } = await supabase.auth.signUp({
         email: trimmed,
@@ -47,7 +60,7 @@ export function AuthScreen() {
         },
       })
       if (error) setError(error.message)
-      else if (data.session) await navigate({ to: '/' })
+      else if (data.session) await navigate({ href: redirect ?? '/' })
       else setNotice('Check your email to confirm your account, then sign in.')
     }
     setBusy(false)
@@ -56,10 +69,10 @@ export function AuthScreen() {
   return (
     <main className="mx-auto flex max-w-sm flex-col gap-4 p-4">
       <div role="tablist" className="tabs tabs-box">
-        <button role="tab" className={`tab flex-1 ${mode === 'signin' ? 'tab-active' : ''}`} onClick={() => setMode('signin')}>
+        <button role="tab" className={`tab flex-1 ${mode !== 'register' ? 'tab-active' : ''}`} onClick={() => switchMode('signin')}>
           Sign in
         </button>
-        <button role="tab" className={`tab flex-1 ${mode === 'register' ? 'tab-active' : ''}`} onClick={() => setMode('register')}>
+        <button role="tab" className={`tab flex-1 ${mode === 'register' ? 'tab-active' : ''}`} onClick={() => switchMode('register')}>
           Register
         </button>
       </div>
@@ -108,6 +121,7 @@ export function AuthScreen() {
             onChange={(e) => setEmail(e.target.value)}
           />
         </label>
+        {mode !== 'forgot' && (
         <label className="flex flex-col gap-1">
           <span className="text-sm">Password</span>
           <input
@@ -120,10 +134,21 @@ export function AuthScreen() {
             onChange={(e) => setPassword(e.target.value)}
           />
         </label>
+        )}
+        {mode === 'signin' && (
+          <button type="button" className="link link-hover self-end text-sm" onClick={() => switchMode('forgot')}>
+            Forgot password?
+          </button>
+        )}
         <button className="btn btn-primary" disabled={busy}>
           {busy && <span className="loading loading-spinner loading-xs" />}
-          {mode === 'signin' ? 'Sign in' : 'Create account'}
+          {mode === 'signin' ? 'Sign in' : mode === 'register' ? 'Create account' : 'Send reset link'}
         </button>
+        {mode === 'forgot' && (
+          <button type="button" className="link link-hover text-sm" onClick={() => switchMode('signin')}>
+            Back to sign in
+          </button>
+        )}
       </form>
 
       {error && <div role="alert" className="alert alert-error alert-soft">{error}</div>}

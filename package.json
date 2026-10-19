@@ -7,11 +7,13 @@
     "identify-batch": "tsx scripts/identify-batch.ts",
     "typecheck": "tsc -b",
     "match-test": "tsx scripts/match-test.ts",
-    "dev": "vercel dev",
-    "dev:vite": "vite",
+    "dev": "vite",
+    "dev:api": "vercel dev",
+    "dev:phone": "vercel dev --listen 0.0.0.0:5173",
     "build": "vite build && tsc -b",
     "test": "tsx --test shared/*.test.ts",
     "rls-test": "tsx scripts/rls-test.ts",
+    "status-test": "tsx scripts/status-verify-test.ts",
     "intake-e2e": "tsx scripts/intake-e2e.ts"
   },
   "dependencies": {

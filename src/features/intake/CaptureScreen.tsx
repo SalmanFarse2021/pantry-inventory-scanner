@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { IconRepeat } from '@tabler/icons-react'
-import type { PublicAvailability } from '../../../shared/catalogView'
-import { AVAILABILITY_OPTIONS } from './availability'
 import { CameraView } from './CameraView'
 import { makeCapture } from './image'
 import { useCaptureQueue } from './useCaptureQueue'
@@ -12,7 +10,6 @@ type Review = { photo: Blob; thumb: Blob; url: string }
 export function CaptureScreen() {
   const { enqueue, last, pending } = useCaptureQueue()
   const [review, setReview] = useState<Review | null>(null)
-  const [availability, setAvailability] = useState<PublicAvailability>('in_stock')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [added, setAdded] = useState(0)
@@ -37,7 +34,7 @@ export function CaptureScreen() {
   async function confirm() {
     if (!review) return
     setBusy(true)
-    await enqueue(review.photo, review.thumb, availability)
+    await enqueue(review.photo, review.thumb, 'in_stock')
     setAdded((n) => n + 1)
     setReview(null)
     setBusy(false)
@@ -46,7 +43,7 @@ export function CaptureScreen() {
   return (
     <main className="mx-auto flex max-w-md flex-col gap-4 p-4">
       <header className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Scan an item</h1>
+        <h1 className="text-xl font-semibold">Add an item</h1>
         <Link to="/queue" className="btn btn-sm btn-ghost">
           Queue{added > 0 && <span className="badge badge-primary">{added}</span>}
           {pending.length > 0 && <span className="badge badge-warning">{pending.length} uploading</span>}
@@ -58,20 +55,8 @@ export function CaptureScreen() {
       {review ? (
         <>
           <img src={review.url} alt="Captured item" className="aspect-[3/4] w-full rounded-box bg-black object-contain" />
-          <div role="group" aria-label="Stock level" className="join w-full">
-            {AVAILABILITY_OPTIONS.map((o) => (
-              <button
-                key={o.value}
-                aria-pressed={availability === o.value}
-                className={`btn join-item flex-1 ${availability === o.value ? o.cls : 'btn-soft'}`}
-                onClick={() => setAvailability(o.value)}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
           <p className="text-center text-xs opacity-70">
-            If we already have this item, its stock level is updated. Otherwise it is added.
+            The photo confirms the item is here. If we already have it, it is marked in stock; otherwise it is added as a new item.
           </p>
           <div className="grid grid-cols-2 gap-3">
             <button className="btn btn-outline" disabled={busy} onClick={() => setReview(null)}>Retake</button>

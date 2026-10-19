@@ -12,15 +12,20 @@ import { availabilityText } from './availability'
 const thumbUrl = (jobId: string) => supabase.storage.from('thumbnails').getPublicUrl(`${jobId}.jpg`).data.publicUrl
 
 export function QueueScreen() {
-  const { batchId, pending, newBatch } = useCaptureQueue()
-  const { data: jobs = [], isLoading, error } = useIntakeJobs(batchId)
+  const { batchId, pending, errors, dismissed, newBatch, dismiss, discard } = useCaptureQueue()
+  const { data: allJobs = [], isLoading, error } = useIntakeJobs(batchId)
+  const jobs = allJobs.filter((j) => !dismissed.includes(j.id))
+  const finished = jobs.filter((j) => j.status === 'green' || j.status === 'rejected')
   const queryClient = useQueryClient()
 
   // Local photos that have not reached the server yet are shown first.
   const pendingUrls = usePendingUrls(pending)
 
+  const [retryError, setRetryError] = useState<string | null>(null)
+
   async function retry(job: IntakeJob) {
-    await requestIdentify(job.id).catch(() => {})
+    setRetryError(null)
+    await requestIdentify(job.id).catch((e: Error) => setRetryError(e.message))
     void queryClient.invalidateQueries({ queryKey: ['intake-jobs', batchId] })
   }
 
@@ -29,12 +34,20 @@ export function QueueScreen() {
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Queue</h1>
         <div className="flex gap-2">
-          <Link to="/capture" className="btn btn-sm btn-primary">Scan an item</Link>
+          <Link to="/capture" className="btn btn-sm btn-primary">Add item</Link>
+          <button
+            className="btn btn-sm btn-ghost"
+            disabled={!finished.length}
+            onClick={() => dismiss(finished.map((j) => j.id))}
+          >
+            Clear done
+          </button>
           <button className="btn btn-sm btn-ghost" onClick={newBatch}>New batch</button>
         </div>
       </header>
 
       {error && <div role="alert" className="alert alert-error alert-soft">{error.message}</div>}
+      {retryError && <div role="alert" className="alert alert-error alert-soft">{retryError}</div>}
       {isLoading && <span className="loading loading-spinner mx-auto" />}
       {!isLoading && !jobs.length && !pending.length && <p className="opacity-70">Nothing in this batch yet.</p>}
 
@@ -43,10 +56,13 @@ export function QueueScreen() {
           <li key={c.id} className="flex items-center gap-3 rounded-box bg-base-200 p-2">
             <img src={pendingUrls[c.id]} alt="" className="size-14 rounded-field object-cover" />
             <div className="min-w-0 flex-1">
-              <div className="font-medium">Uploading…</div>
-              <div className="text-sm opacity-70">{availabilityText(c.availability ?? 'in_stock')}. Saved on this phone until it uploads.</div>
+              <div className="font-medium">{errors[c.id] ? 'Upload failed, retrying' : 'Uploading…'}</div>
+              <div className="text-sm opacity-70">
+                {errors[c.id] ?? `${availabilityText(c.availability ?? 'in_stock')}. Saved on this phone until it uploads.`}
+              </div>
             </div>
-            <span className="loading loading-spinner loading-sm" />
+            {!errors[c.id] && <span className="loading loading-spinner loading-sm" />}
+            <button className="btn btn-xs btn-ghost" onClick={() => void discard(c.id)}>Discard</button>
           </li>
         ))}
         {jobs.map((job) => (

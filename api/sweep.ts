@@ -4,6 +4,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { admin } from "./_lib/clients.js";
 import { claimJob, runJob } from "./_lib/runJob.js";
+import { claimShelfScan, runShelfScan } from "./_lib/runShelf.js";
 
 export const config = { maxDuration: 300 };
 
@@ -35,5 +36,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       outcomes.error = (outcomes.error ?? 0) + 1;
     }
   }
-  return res.status(200).json({ waiting: jobs.length, outcomes });
+
+  const { data: scans } = await admin.from("shelf_scans").select("id").eq("status", "waiting_quota").order("created_at");
+  for (const { id } of scans ?? []) {
+    if (Date.now() - started > BUDGET_MS) break;
+    try {
+      const claimed = await claimShelfScan(id);
+      if (!claimed) continue;
+      const outcome = await runShelfScan(id, claimed);
+      outcomes[`shelf_${outcome}`] = (outcomes[`shelf_${outcome}`] ?? 0) + 1;
+      if (outcome === "waiting_quota") break;
+    } catch {
+      outcomes.error = (outcomes.error ?? 0) + 1;
+    }
+  }
+  return res.status(200).json({ waiting: jobs.length, shelfWaiting: scans?.length ?? 0, outcomes });
 }

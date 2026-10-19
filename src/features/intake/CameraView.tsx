@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { IconCamera, IconPhoto } from '@tabler/icons-react'
 
-type Props = { onPhoto: (photo: Blob) => void }
+type Props = {
+  onPhoto: (photo: Blob) => void
+  hint?: string
+  guide?: boolean // dashed box showing where one item should sit
+}
 
 // Live rear-camera view with a framing guide. Falls back to the phone's own camera / photo
 // picker when live access is denied or unavailable (also handy on a desktop).
-export function CameraView({ onPhoto }: Props) {
+export function CameraView({ onPhoto, hint = 'One item, label facing the camera', guide = true }: Props) {
   const video = useRef<HTMLVideoElement>(null)
   const [ready, setReady] = useState(false)
   const [denied, setDenied] = useState(false)
@@ -60,11 +64,8 @@ export function CameraView({ onPhoto }: Props) {
       {!denied && (
         <div className="relative aspect-[3/4] overflow-hidden rounded-box bg-black">
           <video ref={video} autoPlay playsInline muted onPlaying={() => setReady(true)} className="size-full object-cover" />
-          {/* Framing guide: the item should fill this box. */}
-          <div className="pointer-events-none absolute inset-[12%] rounded-box border-2 border-dashed border-white/80" />
-          <p className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-sm text-white/90">
-            One item, label facing the camera
-          </p>
+          {guide && <div className="pointer-events-none absolute inset-[12%] rounded-box border-2 border-dashed border-white/80" />}
+          <p className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-sm text-white/90">{hint}</p>
         </div>
       )}
       {denied && <p className="text-sm opacity-70">Camera access is off. Use the button below to take a photo.</p>}
