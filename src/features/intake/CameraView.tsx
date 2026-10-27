@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { IconCamera, IconPhoto } from '@tabler/icons-react'
 
 type Props = {
@@ -7,8 +7,8 @@ type Props = {
   guide?: boolean // dashed box showing where one item should sit
 }
 
-// Live rear-camera view with a framing guide. Falls back to the phone's own camera / photo
-// picker when live access is denied or unavailable (also handy on a desktop).
+// Live rear-camera view with a framing guide, plus a photo-library picker. Falls back to the
+// phone's own camera when live access is denied or unavailable (also handy on a desktop).
 export function CameraView({ onPhoto, hint = 'One item, label facing the camera', guide = true }: Props) {
   const video = useRef<HTMLVideoElement>(null)
   const [ready, setReady] = useState(false)
@@ -42,23 +42,6 @@ export function CameraView({ onPhoto, hint = 'One item, label facing the camera'
     canvas.toBlob((b) => b && onPhoto(b), 'image/jpeg', 0.92)
   }
 
-  const picker = (
-    <label className="btn btn-outline btn-block">
-      <IconPhoto size={20} /> {denied ? 'Take or choose a photo' : 'Choose a photo instead'}
-      <input
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={(e) => {
-          const f = e.target.files?.[0]
-          if (f) onPhoto(f)
-          e.target.value = ''
-        }}
-      />
-    </label>
-  )
-
   return (
     <div className="flex flex-col gap-3">
       {!denied && (
@@ -68,13 +51,41 @@ export function CameraView({ onPhoto, hint = 'One item, label facing the camera'
           <p className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-sm text-white/90">{hint}</p>
         </div>
       )}
-      {denied && <p className="text-sm opacity-70">Camera access is off. Use the button below to take a photo.</p>}
+      {denied && <p className="text-sm opacity-70">Camera access is off. Take a photo or choose one from your library.</p>}
       {!denied && (
         <button className="btn btn-primary btn-lg btn-block" disabled={!ready} onClick={snap}>
           <IconCamera size={24} /> Capture
         </button>
       )}
-      {picker}
+      {denied && (
+        <PhotoPicker onPhoto={onPhoto} capture>
+          <IconCamera size={20} /> Take a photo
+        </PhotoPicker>
+      )}
+      <PhotoPicker onPhoto={onPhoto}>
+        <IconPhoto size={20} /> {denied ? 'Choose from library' : 'Choose from library instead'}
+      </PhotoPicker>
     </div>
+  )
+}
+
+// File-input button. `capture` jumps straight to the camera on phones; without it the OS
+// offers the photo library.
+function PhotoPicker({ onPhoto, capture, children }: { onPhoto: (photo: Blob) => void; capture?: boolean; children: ReactNode }) {
+  return (
+    <label className="btn btn-outline btn-block">
+      {children}
+      <input
+        type="file"
+        accept="image/*"
+        capture={capture ? 'environment' : undefined}
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          if (f) onPhoto(f)
+          e.target.value = ''
+        }}
+      />
+    </label>
   )
 }

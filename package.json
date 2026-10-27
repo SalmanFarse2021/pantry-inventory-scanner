@@ -14,7 +14,8 @@
     "test": "tsx --test shared/*.test.ts",
     "rls-test": "tsx scripts/rls-test.ts",
     "status-test": "tsx scripts/status-verify-test.ts",
-    "intake-e2e": "tsx scripts/intake-e2e.ts"
+    "intake-e2e": "tsx scripts/intake-e2e.ts",
+    "shelf-scan": "tsx scripts/run-shelf-scan.ts"
   },
   "dependencies": {
     "@google/genai": "^2.27.0",
